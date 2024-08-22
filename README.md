@@ -1,8 +1,14 @@
 - [English](./README.md)
-- [Türkçe](./readme/README.tr.md)
+- [Türkçe - Turkish](./readme/README.tr.md)
+- [Русский - Russian](./readme/README.ru.md)
+- [中國人 - Chinese](./readme/README.ch.md)
+- [Español - Spanish](./readme/README.es.md)
+- [Deutsch - German](./readme/README.ge.md)
+- [Italiano - Italian](./readme/README.it.md)
+- [日本語 - Japanese](./readme/README.ja.md)
 
 # m3utostrm
-This project is designed to learn chatgpt, iptv-org and tmdb APIs.
+This project is designed to learn chatgpt, iptv-org and tmdb APIs. The codes are completely written by chatgpt, so I don't know what's missing, what's extra or what's wrong. I don't know if I can edit it for any requests in the future. In the latest m3utostrm.py file, all the explanations, directions and settings are in English. But in the old versions in the 'old_versions' folder, it says my own language, Turkish. If this will be a problem for those who want to use the old versions, I'm sorry about that.
 
 It uses Python to scan the contents of '.m3u' files downloaded from IPTV service providers and create '.strm' files for movies and TV shows. It also creates '.nfo' files using the TMDB API and organizes TV broadcasts in '.m3u' files with the IPTVORG API.
 

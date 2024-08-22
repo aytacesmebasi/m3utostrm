@@ -1,6 +1,6 @@
 README.tr.md
 
-Bu proje, chatgpt, iptv-org ve tmdb apilerinin öğrenilmesi amacıyla hazırlanmıştır. 
+Bu proje, chatgpt, iptv-org ve tmdb apilerinin öğrenilmesi amacıyla hazırlanmıştır. Kodları tamamen chatgpt yazmıştır, bu nedenle ne eksik, ne fazla veya ne yanlış bilmiyorum. İleride herhangi bir isteğinizle ilgili düzenleme yapabilir miyim bilmiyorum.
 
 IPTV servis sağlayıcılarından indirilen '.m3u' dosyalarının içeriklerini taramak ve filmler ve TV şovları için '.strm' dosyaları oluşturmak için Python kullanır. Ayrıca TMDB API'sini kullanarak '.nfo' dosyaları oluşturur ve IPTVORG API'siyle TV yayınlarını '.m3u' dosyalarında düzenler.
 

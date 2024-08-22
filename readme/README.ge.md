@@ -1,6 +1,6 @@
 README.ge.md
 
-Dieses Projekt wurde vorbereitet, um die APIs chatgpt, iptv-org und tmdb zu erlernen. Die Codes wurden vollständig von chatgpt geschrieben, daher weiß ich nicht, was fehlt, was zu viel ist oder was falsch ist. Ich weiß nicht, ob ich in Zukunft irgendwelche Vorkehrungen für Ihre Anfragen treffen kann.
+Dieses Projekt wurde vorbereitet, um die APIs chatgpt, iptv-org und tmdb zu erlernen. Die Codes wurden vollständig von chatgpt geschrieben, daher weiß ich nicht, was fehlt, was zu viel ist oder was falsch ist. Ich weiß nicht, ob ich in Zukunft irgendwelche Vorkehrungen für Ihre Anfragen treffen kann. In der endgültigen m3utostrm.py-Datei sind alle Erklärungen, Anweisungen und Einstellungen auf Englisch. Allerdings steht in den alten Versionen im Ordner „old_versions“ Türkisch, was meine eigene Sprache ist. Es tut mir leid, wenn dies für diejenigen, die ältere Versionen verwenden möchten, ein Problem darstellt.
 
 Es verwendet Python, um den Inhalt von „.m3u“-Dateien zu scannen, die von IPTV-Dienstanbietern heruntergeladen wurden, und „.strm“-Dateien für Filme und Fernsehsendungen zu erstellen. Es erstellt außerdem „.nfo“-Dateien mit der TMDB-API und organisiert TV-Sendungen mit der IPTVORG-API in „.m3u“-Dateien.
 

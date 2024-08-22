@@ -1,6 +1,6 @@
 README.es.md
 
-Este proyecto ha sido preparado para aprender las API chatgpt, iptv-org y tmdb.
+Este proyecto ha sido preparado para aprender las API chatgpt, iptv-org y tmdb. Los códigos fueron escritos enteramente por chatgpt, así que no sé qué falta, qué es demasiado o qué está mal. No sé si puedo hacer algún arreglo con respecto a cualquiera de sus solicitudes en el futuro.
 
 Utiliza Python para escanear el contenido de los archivos '.m3u' descargados de proveedores de servicios de IPTV y crear archivos '.strm' para películas y programas de televisión. También crea archivos '.nfo' utilizando la API TMDB y organiza transmisiones de televisión en archivos '.m3u' con la API IPTVORG.
 

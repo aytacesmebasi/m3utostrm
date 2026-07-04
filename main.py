@@ -30,7 +30,7 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v1.9")
+logger.info("m3utostrm v2.0")
 logger.info("nfo file content improved")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
@@ -82,6 +82,7 @@ def is_porn_url(url):
     combined_pattern = '|'.join(porn_patterns)
     return re.search(combined_pattern, url, re.IGNORECASE) is not None
 
+# Api hata mesajı kontrolü
 def get_with_retries(url, max_retries=3, backoff_factor=1):
     session = requests.Session()
     retry = Retry(
@@ -163,73 +164,121 @@ def create_nfo(data, file_path, is_tv=False):
         logging.error(f"Bir hata oluştu: {e}")
 
 def generate_tv_nfo_content(data):
+    name = data.get('name', 'Bilinmiyor')
+    original_name = data.get('original_name', name)
+    rating = data.get('vote_average', 'Bilinmiyor')
+    year = data.get('first_air_date', '')[:4]
+    votes = data.get('vote_count', 'Bilinmiyor')
+    overview = data.get('overview', 'Açıklama mevcut değil.')
+    poster_path = data.get('poster_path', '')
+    backdrop_path = data.get('backdrop_path', '')
+    mpaa = 'TV-MA' if data.get('adult') else 'TV-G'
+    country = ', '.join(data.get('origin_country', ['Bilinmiyor']))
+    premiered = data.get('first_air_date', 'Bilinmiyor')
+    status = data.get('status', 'Bilinmiyor')
+    tv_id = data.get('id', 'Bilinmiyor')
+    genre = ', '.join([genre.get('name', 'Bilinmiyor') for genre in data.get('genres', [])])
+    studio = ', '.join([company.get('name', 'Bilinmiyor') for company in data.get('production_companies', [])])
+    
     content = f"""
 <tvshow>
-    <title>{data['name']}</title>
-    <originaltitle>{data.get('original_name', data['name'])}</originaltitle>
-    <sorttitle>{data['name']}</sorttitle>
-    <rating>{data.get('vote_average', '')}</rating>
-    <year>{data.get('first_air_date', '')[:4]}</year>
-    <votes>{data.get('vote_count', '')}</votes>
-    <outline>{data.get('overview', '')}</outline>
-    <plot>{data.get('overview', '')}</plot>
-    <thumb>https://image.tmdb.org/t/p/original{data.get('poster_path', '')}</thumb>
-    <fanart>https://image.tmdb.org/t/p/original{data.get('backdrop_path', '')}</fanart>
-    <mpaa>{'TV-MA' if data.get('adult') else 'TV-G'}</mpaa>
-    <country>{', '.join(data.get('origin_country', []))}</country>
-    <premiered>{data.get('first_air_date', '')}</premiered>
-    <status>{data.get('status', '')}</status>
-    <id>{data.get('id', '')}</id>
-    <genre>{', '.join([genre['name'] for genre in data.get('genres', [])])}</genre>
-    <studio>{', '.join([company['name'] for company in data.get('production_companies', [])])}</studio>
+    <title>{name}</title>
+    <originaltitle>{original_name}</originaltitle>
+    <sorttitle>{name}</sorttitle>
+    <rating>{rating}</rating>
+    <year>{year}</year>
+    <votes>{votes}</votes>
+    <outline>{overview}</outline>
+    <plot>{overview}</plot>
+    <thumb>https://image.tmdb.org/t/p/original{poster_path}</thumb>
+    <fanart>https://image.tmdb.org/t/p/original{backdrop_path}</fanart>
+    <mpaa>{mpaa}</mpaa>
+    <country>{country}</country>
+    <premiered>{premiered}</premiered>
+    <status>{status}</status>
+    <id>{tv_id}</id>
+    <genre>{genre}</genre>
+    <studio>{studio}</studio>
 """
+
     # Oyuncular
     for cast in data.get('credits', {}).get('cast', [])[:10]:  # İlk 10 oyuncu
+        name = cast.get('name', 'Bilinmiyor')
+        role = cast.get('character', 'Bilinmiyor')
+        profile_path = cast.get('profile_path', '')
         content += f"""
     <actor>
-        <name>{cast['name']}</name>
-        <role>{cast['character']}</role>
-        <thumb>https://image.tmdb.org/t/p/original{cast['profile_path']}</thumb>
+        <name>{name}</name>
+        <role>{role}</role>
+        <thumb>https://image.tmdb.org/t/p/original{profile_path}</thumb>
     </actor>"""
 
     content += "\n</tvshow>"
     return content
 
+
 def generate_movie_nfo_content(data):
+    title = data.get('title', 'Bilinmiyor')
+    original_title = data.get('original_title', 'Bilinmiyor')
+    rating = data.get('vote_average', 'Bilinmiyor')
+    year = data.get('release_date', '')[:4]
+    votes = data.get('vote_count', 'Bilinmiyor')
+    outline = data.get('overview', 'Açıklama mevcut değil.')
+    plot = data.get('overview', 'Açıklama mevcut değil.')
+    tagline = data.get('tagline', 'Bilinmiyor')
+    runtime = data.get('runtime', 'Bilinmiyor')
+    poster_path = data.get('poster_path', '')
+    backdrop_path = data.get('backdrop_path', '')
+    mpaa = 'PG-13' if data.get('adult') else 'G'
+    country = ', '.join([country.get('name', 'Bilinmiyor') for country in data.get('production_countries', [])])
+    premiered = data.get('release_date', 'Bilinmiyor')
+    status = 'Released' if data.get('status') == 'Released' else 'Bilinmiyor'
+    imdb_id = data.get('imdb_id', 'Bilinmiyor')
+    movie_id = data.get('id', 'Bilinmiyor')
+    genre = ', '.join([genre.get('name', 'Bilinmiyor') for genre in data.get('genres', [])])
+    studio = ', '.join([company.get('name', 'Bilinmiyor') for company in data.get('production_companies', [])])
+    trailer = 'https://www.youtube.com/watch?v=' + data.get('videos', {}).get('results', [{}])[0].get('key', '') if data.get('videos', {}).get('results') else 'Bilinmiyor'
+    director = ', '.join([member.get('name', 'Bilinmiyor') for member in data.get('credits', {}).get('crew', []) if member.get('job') == 'Director'])
+    credits = ', '.join([member.get('name', 'Bilinmiyor') for member in data.get('credits', {}).get('crew', []) if member.get('job') == 'Writer'])
+    
     content = f"""
 <movie>
-    <title>{data['title']}</title>
-    <originaltitle>{data['original_title']}</originaltitle>
-    <sorttitle>{data['title']}</sorttitle>
-    <rating>{data.get('vote_average', '')}</rating>
-    <year>{data.get('release_date', '')[:4]}</year>
-    <votes>{data.get('vote_count', '')}</votes>
-    <outline>{data.get('overview', '')}</outline>
-    <plot>{data.get('overview', '')}</plot>
-    <tagline>{data.get('tagline', '')}</tagline>
-    <runtime>{data.get('runtime', '')}</runtime>
-    <thumb>https://image.tmdb.org/t/p/original{data.get('poster_path', '')}</thumb>
-    <fanart>https://image.tmdb.org/t/p/original{data.get('backdrop_path', '')}</fanart>
-    <mpaa>{'PG-13' if data.get('adult') else 'G'}</mpaa>
+    <title>{title}</title>
+    <originaltitle>{original_title}</originaltitle>
+    <sorttitle>{title}</sorttitle>
+    <rating>{rating}</rating>
+    <year>{year}</year>
+    <votes>{votes}</votes>
+    <outline>{outline}</outline>
+    <plot>{plot}</plot>
+    <tagline>{tagline}</tagline>
+    <runtime>{runtime}</runtime>
+    <thumb>https://image.tmdb.org/t/p/original{poster_path}</thumb>
+    <fanart>https://image.tmdb.org/t/p/original{backdrop_path}</fanart>
+    <mpaa>{mpaa}</mpaa>
     <playcount>0</playcount>
-    <country>{', '.join([country['name'] for country in data.get('production_countries', [])])}</country>
-    <premiered>{data.get('release_date', '')}</premiered>
-    <status>{'Released' if data.get('status') == 'Released' else ''}</status>
-    <code>{data.get('imdb_id', '')}</code>
-    <id>{data.get('id', '')}</id>
-    <genre>{', '.join([genre['name'] for genre in data.get('genres', [])])}</genre>
-    <studio>{', '.join([company['name'] for company in data.get('production_companies', [])])}</studio>
-    <trailer>{'https://www.youtube.com/watch?v=' + data['videos']['results'][0]['key'] if data.get('videos', {}).get('results') else ''}</trailer>
-    <director>{', '.join([member['name'] for member in data.get('credits', {}).get('crew', []) if member['job'] == 'Director'])}</director>
-    <credits>{', '.join([member['name'] for member in data.get('credits', {}).get('crew', []) if member['job'] == 'Writer'])}</credits>
+    <country>{country}</country>
+    <premiered>{premiered}</premiered>
+    <status>{status}</status>
+    <code>{imdb_id}</code>
+    <id>{movie_id}</id>
+    <genre>{genre}</genre>
+    <studio>{studio}</studio>
+    <trailer>{trailer}</trailer>
+    <director>{director}</director>
+    <credits>{credits}</credits>
 """
+
     # Oyuncular
     for cast in data.get('credits', {}).get('cast', [])[:10]:  # İlk 10 oyuncu
+        name = cast.get('name', 'Bilinmiyor')
+        role = cast.get('character', 'Bilinmiyor')
+        thumb = cast.get('profile_path', '')
         content += f"""
     <actor>
-        <name>{cast['name']}</name>
-        <role>{cast['character']}</role>
-        <thumb>https://image.tmdb.org/t/p/original{cast['profile_path']}</thumb>
+        <name>{name}</name>
+        <role>{role}</role>
+        <thumb>https://image.tmdb.org/t/p/original{thumb}</thumb>
     </actor>"""
 
     content += "\n</movie>"

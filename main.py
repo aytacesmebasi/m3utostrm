@@ -1,5 +1,7 @@
 import os
 import re
+import subprocess
+import sys
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -8,6 +10,12 @@ import logging
 
 # Loglama yapılandırması
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Kullanıcı verileri
+tmdb_api_key = 'YOUR_API_KEY'
+iptvurl = 'YOUR_IPTV_URL'  # Buraya IPTV URL'nizi yazın
+iptvusername = 'YOUR_IPTV_USERNAME'   # Buraya IPTV kullanıcı adınızı yazın
+iptvpassword = 'YOUR_IPTV_PASSWORD'   # Buraya IPTV şifrenizi yazın
 
 # Filtrelenecek ülke kodu
 your_language_code = 'TR'
@@ -66,14 +74,29 @@ def fetch_and_process_channels(api_url):
         logging.error(f"API isteği başarısız oldu: {e}")
         return []
 
-# TMDb API anahtarını girin
-tmdb_api_key = 'YOUR_API_KEY'
-
-# KaynakM3U dosya yolunu belirleyin
+#output_files klasörü oluşturma
 current_working_directory = os.getcwd()
 output_folder_path = os.path.join(current_working_directory, 'output_files')
 os.makedirs(output_folder_path, exist_ok=True)
-m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
+
+# Kaynak M3U dosyasını indirme
+url = f"{iptvurl}/get.php?username={iptvusername}&password={iptvpassword}&type=m3u"
+m3u_file_path = os.path.join(output_folder_path, 'm3u2strm.m3u')
+try:
+    # Dosyayı indirme işlemi
+    response = requests.get(url)
+    
+    # Yanıtın başarılı olup olmadığını kontrol et
+    if response.status_code == 200:
+        # Dosyayı belirtilen yolda kaydet
+        with open(m3u_file_path, 'wb') as file:
+            file.write(response.content)
+        print(f"Dosya başarıyla indirildi ve '{m3u_file_path}' olarak kaydedildi.")
+    else:
+        print(f"HTTP {response.status_code} hata kodu ile karşılaşıldı.")
+except RequestException as e:
+    print(f"Dosya indirme başarısız. Hata: {e}")
+
 
 # Log dosyalama
 log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
@@ -84,8 +107,31 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v2.2")
-logger.info("group title translation improved")
+logger.info("m3utostrm v2.3")
+logger.info("downloading m3u file from internet")
+
+# Kütüphane listesi
+required_libraries = [
+    "requests",
+    "requests-cache"
+]
+
+def install(package):
+    """Belirtilen paketi yükler."""
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+def main():
+    for library in required_libraries:
+        try:
+            __import__(library)
+        except ImportError:
+            logging.info(f"{library} yüklü değil. Yükleniyor...")
+            install(library)
+        else:
+            logging.info(f"{library} zaten yüklü.")
+
+if __name__ == "__main__":
+    main()
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')

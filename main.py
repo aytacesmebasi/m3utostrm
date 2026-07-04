@@ -30,8 +30,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v1.8")
-logger.info("cache file creation started")
+logger.info("m3utostrm v1.9")
+logger.info("nfo file content improved")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
@@ -152,7 +152,18 @@ def search_tmdb(query, is_tv=False):
 def create_nfo(data, file_path, is_tv=False):
     try:
         if is_tv:
-            nfo_content = f"""
+            content = generate_tv_nfo_content(data)
+        else:
+            content = generate_movie_nfo_content(data)
+        
+        with open(file_path, 'w', encoding='utf-8') as nfo_file:
+            nfo_file.write(content)
+        logging.info(f"NFO dosyası oluşturuldu: {file_path}")
+    except Exception as e:
+        logging.error(f"Bir hata oluştu: {e}")
+
+def generate_tv_nfo_content(data):
+    content = f"""
 <tvshow>
     <title>{data['name']}</title>
     <originaltitle>{data.get('original_name', data['name'])}</originaltitle>
@@ -171,10 +182,21 @@ def create_nfo(data, file_path, is_tv=False):
     <id>{data.get('id', '')}</id>
     <genre>{', '.join([genre['name'] for genre in data.get('genres', [])])}</genre>
     <studio>{', '.join([company['name'] for company in data.get('production_companies', [])])}</studio>
-</tvshow>
 """
-        else:
-            nfo_content = f"""
+    # Oyuncular
+    for cast in data.get('credits', {}).get('cast', [])[:10]:  # İlk 10 oyuncu
+        content += f"""
+    <actor>
+        <name>{cast['name']}</name>
+        <role>{cast['character']}</role>
+        <thumb>https://image.tmdb.org/t/p/original{cast['profile_path']}</thumb>
+    </actor>"""
+
+    content += "\n</tvshow>"
+    return content
+
+def generate_movie_nfo_content(data):
+    content = f"""
 <movie>
     <title>{data['title']}</title>
     <originaltitle>{data['original_title']}</originaltitle>
@@ -200,28 +222,18 @@ def create_nfo(data, file_path, is_tv=False):
     <trailer>{'https://www.youtube.com/watch?v=' + data['videos']['results'][0]['key'] if data.get('videos', {}).get('results') else ''}</trailer>
     <director>{', '.join([member['name'] for member in data.get('credits', {}).get('crew', []) if member['job'] == 'Director'])}</director>
     <credits>{', '.join([member['name'] for member in data.get('credits', {}).get('crew', []) if member['job'] == 'Writer'])}</credits>
-</movie>
 """
-        # Oyuncular
-        for cast in data.get('credits', {}).get('cast', [])[:10]:  # İlk 10 oyuncu
-            nfo_content += f"""
+    # Oyuncular
+    for cast in data.get('credits', {}).get('cast', [])[:10]:  # İlk 10 oyuncu
+        content += f"""
     <actor>
         <name>{cast['name']}</name>
         <role>{cast['character']}</role>
         <thumb>https://image.tmdb.org/t/p/original{cast['profile_path']}</thumb>
     </actor>"""
 
-        if is_tv:
-            nfo_content += "\n</tvshow>"
-        else:
-            nfo_content += "\n</movie>"
-
-        with open(file_path, 'w', encoding='utf-8') as nfo_file:
-            nfo_file.write(nfo_content)
-        logging.info(f"NFO dosyası oluşturuldu: {file_path}")
-    except Exception as e:
-        logging.error(f"Bir hata oluştu: {e}")
-
+    content += "\n</movie>"
+    return content
 
 # M3U dosyasını okuyun ve STRM/NFO dosyalarını oluşturun
 with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
@@ -250,7 +262,8 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                     media_name = extinf_line.split(',', 1)[1].strip()
 
                     # URL'nin ".ts" ile bitip bitmediğini kontrol et
-                    if url_line.lower().endswith('.ts'):
+                    url_line_lower = url_line.lower()
+                    if url_line_lower.endswith('.ts'):
                         # İsim temizleme
                         cleaned_media_name = suffix_pattern.sub('', media_name).strip()
                         cleaned_media_name = sanitize_filename(cleaned_media_name)

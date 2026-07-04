@@ -31,8 +31,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.4")
-logger.info("tv series episode control improved")
+logger.info("m3utostrm v3.5")
+logger.info("tv serial episode control removed and api control added")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -226,6 +226,7 @@ async def fetch_data(session, url):
         logging.error(f"API isteği başarısız oldu: {e}")
         raise APIRequestError(f"API isteği başarısız oldu: {e}")
 
+
 async def search_tmdb(query, is_tv=False):
     search_type = 'tv' if is_tv else 'movie'
     query_encoded = quote(query)
@@ -243,51 +244,6 @@ async def search_tmdb(query, is_tv=False):
             logging.error(f"TMDb API isteği başarısız oldu: {e}")
     
     return None
-
-async def validate_season_and_episode(tmdb_id, season, episode):
-    async with aiohttp.ClientSession() as session:
-        show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?api_key={tmdb_api_key}&language=tr"
-        show_details_response = await fetch_data(session, show_details_url)
-        if show_details_response:
-            total_seasons = show_details_response.get('number_of_seasons')
-            if int(season) > total_seasons:
-                logging.warning(f"Uyarı: '{season}' sezonu mevcut değil.")
-                return False
-            
-            season_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}/season/{season}?api_key={tmdb_api_key}&language=tr"
-            season_details_response = await fetch_data(session, season_details_url)
-            if season_details_response:
-                total_episodes = len(season_details_response.get('episodes', []))
-                if int(episode) > total_episodes:
-                    logging.warning(f"Uyarı: '{season}. sezon {episode}. bölüm' mevcut değil.")
-                    return False
-            else:
-                logging.error(f"Uyarı: Sezon detayları için TMDb API isteği başarısız oldu.")
-                return False
-        else:
-            logging.error(f"Uyarı: Dizi detayları için TMDb API isteği başarısız oldu.")
-            return False
-    return True
-
-async def get_episode_title(tmdb_id, season, episode):
-    async with aiohttp.ClientSession() as session:
-        episode_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}/season/{season}/episode/{episode}?api_key={tmdb_api_key}&language=tr"
-        episode_details_response = await fetch_data(session, episode_details_url)
-        if episode_details_response:
-            return episode_details_response.get('name', f"Sezon {season} Bölüm {episode}")
-        else:
-            logging.error(f"Uyarı: Bölüm detayları için TMDb API isteği başarısız oldu.")
-            return None
-
-async def check_last_updated(tmdb_id):
-    async with aiohttp.ClientSession() as session:
-        show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?api_key={tmdb_api_key}&language=tr"
-        show_details_response = await fetch_data(session, show_details_url)
-        if show_details_response:
-            last_updated = show_details_response.get('last_air_date')
-            # Gerekli kontrolleri yapabilir ve kullanıcıyı bilgilendirebilirsin.
-            logging.info(f"'{show_details_response.get('name')}' en son {last_updated} tarihinde güncellenmiştir.")
-
 
 # NFO dosyası oluşturma fonksiyonu (film ve dizi için)
 async def create_nfo(data, file_path, is_tv=False):
@@ -529,18 +485,6 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
     episode_strm_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.strm")
     episode_nfo_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.nfo")
     
-    # Sezon ve bölüm geçerliliğini kontrol et
-    is_valid = await validate_season_and_episode(tmdb_data['id'], season, episode)
-    if not is_valid:
-        logging.warning(f"Uyarı: '{show_name} ({year})' için geçersiz sezon veya bölüm.")
-        return
-
-    # Bölüm başlığını al
-    episode_title = await get_episode_title(tmdb_data['id'], season, episode)
-    if episode_title:
-        # Bölüm başlığını dosya adına ekle
-        episode_nfo_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode} - {episode_title}.nfo")
-    
     # STRM dosyasını oluştur
     async with aiofiles.open(episode_strm_path, 'w', encoding='utf-8') as episode_strm_file:
         await episode_strm_file.write(url_line)
@@ -567,9 +511,6 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
                 logging.error(f"Uyarı: Sezon detayları için TMDb API isteği başarısız oldu.")
         else:
             logging.error(f"Uyarı: Dizi detayları için TMDb API isteği başarısız oldu.")
-    
-    # Son güncelleme tarihini kontrol et
-    await check_last_updated(tmdb_data['id'])
 
 async def create_movie_files(movie_name, tmdb_data, url_line):
     # Film için klasör oluştur

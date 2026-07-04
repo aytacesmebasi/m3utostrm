@@ -33,8 +33,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v2.9")
-logger.info("functions made asynchronous")
+logger.info("m3utostrm v3.0")
+logger.info("asynchronous functions developed")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -509,12 +509,13 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
 
 async def create_movie_files(movie_name, tmdb_data, url_line):
     # Film için klasör oluştur
-    movie_folder = os.path.join(movies_folder_path, movie_name)
+    year = tmdb_data.get('release_date', '')[:4]
+    movie_folder = os.path.join(movies_folder_path, f"{movie_name} ({year})")
     os.makedirs(movie_folder, exist_ok=True)
     
     # STRM ve NFO dosyalarının yollarını tanımla
-    movie_strm_path = os.path.join(movie_folder, f"{movie_name}.strm")
-    movie_nfo_path = os.path.join(movie_folder, f"{movie_name}.nfo")
+    movie_nfo_path = os.path.join(movie_folder, f"{movie_name} ({year}).nfo")
+    movie_strm_path = os.path.join(movie_folder, f"{movie_name} ({year}).strm")
     
     # STRM dosyasını oluştur
     async with aiofiles.open(movie_strm_path, 'w', encoding='utf-8') as movie_strm_file:

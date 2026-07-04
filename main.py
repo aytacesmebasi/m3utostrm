@@ -29,12 +29,12 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v2.6")
-logger.info("movies that cannot be found with API are sent to unknown folder")
+logger.info("m3utostrm v2.7")
+logger.info("movies that cannot be found with API are sent to movie folder")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
-iptvurl = 'YOUR_IPTV_URL'  # Buraya IPTV URL'nizi yazın
+iptvurl = 'YOUR_IPTV_URL  # Buraya IPTV URL'nizi yazın
 iptvusername = 'YOUR_IPTV_USERNAME'   # Buraya IPTV kullanıcı adınızı yazın
 iptvpassword = 'YOUR_IPTV_PASSWORD'   # Buraya IPTV şifrenizi yazın
 
@@ -146,8 +146,6 @@ logging.info(f"Series Klasörü oluşturuldu: {series_folder_path}")
 porn_folder_path = os.path.join(output_folder_path, 'porn')
 os.makedirs(porn_folder_path, exist_ok=True)
 logging.info(f"Porn Klasörü oluşturuldu: {porn_folder_path}")
-unknown_folder_path = os.path.join(output_folder_path, 'unknown')
-logging.info(f"Bulunamayanlar için Klasör oluşturuldu: {unknown_folder_path}")
 
 # Api hata mesajı kontrolü
 def get_with_retries(url, max_retries=3, backoff_factor=1):
@@ -507,7 +505,7 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                                         logging.error(f"Uyarı: Film detayları için TMDb API isteği başarısız oldu.")
                             else:
                                 # TMDb'den veri bulunamadığında STRM dosyası oluştur
-                                media_folder = os.path.join(unknown_folder_path, cleaned_media_name)
+                                media_folder = os.path.join(movies_folder_path, cleaned_media_name)
                                 os.makedirs(media_folder, exist_ok=True)
                                 media_strm_path = os.path.join(media_folder, f"{cleaned_media_name}.strm")
                                 with open(media_strm_path, 'w', encoding='utf-8') as media_strm_file:

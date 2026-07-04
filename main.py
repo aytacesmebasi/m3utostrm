@@ -31,8 +31,8 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.6")
-logger.info("folder and file paths edited")
+logger.info("m3utostrm v3.7")
+logger.info("added url count and remaining url count to be processed")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -137,6 +137,19 @@ try:
         print(f"HTTP {response.status_code} hata kodu ile karşılaşıldı.")
 except RequestException as e:
     print(f"Dosya indirme başarısız. Hata: {e}")
+
+# M3U dosyasındaki URL'leri sayan fonksiyon
+url_count = 0
+logging.info(f"Başlangıçta url_count {url_count} olarak tanımlandı.")
+def count_urls_in_m3u(m3u_file_path):
+    with open(m3u_file_path, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+    # http veya https ile başlayan satırları say
+    url_count = sum(1 for line in lines if line.startswith("http"))
+    return url_count
+url_count = count_urls_in_m3u(m3u_file_path)
+remaining_url_count = url_count
+logging.info(f"Dosyada {url_count} adet URL bulunmaktadır.")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
@@ -416,6 +429,8 @@ def extract_bracketsin(media_name):
     return bracketsin_match.group(1).replace(' ', '') if bracketsin_match else ''
 
 async def write_channel_info(channel_info, media_name, url_line, bracketsin, output_file_path):
+    global url_count  # Global değişkeni kullan
+    global remaining_url_count  # Global değişkeni kullan
     file_name = "updated_channels.m3u"
     output_file_path = os.path.join(output_folder_path, file_name)
     channel_name = channel_info.get("name", media_name)
@@ -433,9 +448,12 @@ async def write_channel_info(channel_info, media_name, url_line, bracketsin, out
     async with aiofiles.open(output_file_path, mode='a', encoding='utf-8') as output_file:
         await output_file.write(f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"TR\" is-nsfw=\"{is_nsfw}\", {media_name}\n{url_line}\n")
     
-    logging.info(f"URL '.ts' ile bitiyor ve {output_file_path} dosyasına eklendi: {url_line}")
+    remaining_url_count -= 1  # Geri sayımı azalt
+    logging.info(f"{url_count} / {remaining_url_count} kaldı - URL '.ts' ile bitiyor ve {output_file_path} dosyasına eklendi: {url_line}")
 
 async def write_default_channel_info(media_name, url_line, bracketsin, output_file_path):
+    global url_count  # Global değişkeni kullan
+    global remaining_url_count  # Global değişkeni kullan
     file_name = "updated_channels.m3u"
     output_file_path = os.path.join(output_folder_path, file_name)
     group_title = 'Bilinmeyen'
@@ -445,7 +463,8 @@ async def write_default_channel_info(media_name, url_line, bracketsin, output_fi
     async with aiofiles.open(output_file_path, mode='a', encoding='utf-8') as output_file:
         await output_file.write(content)
     
-    logging.warning(f"Uyarı: '{media_name}' için IPTV-Org kanal bilgisi bulunamadı.")
+    remaining_url_count -= 1  # Geri sayımı azalt
+    logging.warning(f"{url_count} / {remaining_url_count} kaldı - Uyarı: '{media_name}' için IPTV-Org kanal bilgisi bulunamadı.")
 
 async def handle_non_ts_url(media_name, url_line):
     if is_porn_url(media_name):
@@ -464,13 +483,18 @@ async def handle_non_ts_url(media_name, url_line):
             await create_default_strm(media_name, url_line)
 
 async def create_porn_strm(media_name, url_line):
+    global url_count  # Global değişkeni kullan
+    global remaining_url_count  # Global değişkeni kullan
     porn_strm_path = os.path.join(porn_folder_path, f"{sanitize_filename(media_name)}.strm")
     
     async with aiofiles.open(porn_strm_path, 'w', encoding='utf-8') as porn_strm_file:
         await porn_strm_file.write(url_line)
-        logging.info(f"Porno için STRM dosyası oluşturuldu: {porn_strm_path}")
+        remaining_url_count -= 1  # Geri sayımı azalt
+        logging.info(f"{url_count} / {remaining_url_count} kaldı - Porno için STRM dosyası oluşturuldu: {porn_strm_path}")
 
 async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
+    global url_count  # Global değişkeni kullan
+    global remaining_url_count  # Global değişkeni kullan
     year = tmdb_data.get('first_air_date', '')[:4]
     season_episode_match = re.search(r'\s*S(\d{2})\s*E(\d{2})', media_name)
     season = season_episode_match.group(1) if season_episode_match else '01'
@@ -488,7 +512,8 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
     # STRM dosyasını oluştur
     async with aiofiles.open(episode_strm_path, 'w', encoding='utf-8') as episode_strm_file:
         await episode_strm_file.write(url_line)
-        logging.info(f"STRM dosyası oluşturuldu: {episode_strm_path}")
+        remaining_url_count -= 1  # Geri sayımı azalt
+        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {episode_strm_path}")
     
     async with aiohttp.ClientSession() as session:
         # Dizi detaylarını TMDb API'den al ve NFO dosyalarını oluştur
@@ -513,6 +538,8 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
             logging.error(f"Uyarı: Dizi detayları için TMDb API isteği başarısız oldu.")
 
 async def create_movie_files(movie_name, tmdb_data, url_line):
+    global url_count  # Global değişkeni kullan
+    global remaining_url_count  # Global değişkeni kullan
     # Film için klasör oluştur
     year = tmdb_data.get('release_date', '')[:4]
     movie_folder = os.path.join(movies_folder_path, f"{movie_name} ({year})")
@@ -525,7 +552,8 @@ async def create_movie_files(movie_name, tmdb_data, url_line):
     # STRM dosyasını oluştur
     async with aiofiles.open(movie_strm_path, 'w', encoding='utf-8') as movie_strm_file:
         await movie_strm_file.write(url_line)
-        logging.info(f"STRM dosyası oluşturuldu: {movie_strm_path}")
+        remaining_url_count -= 1  # Geri sayımı azalt
+        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {movie_strm_path}")
     
     async with aiohttp.ClientSession() as session:
         # Film detaylarını TMDb API'den al ve NFO dosyasını oluştur
@@ -539,13 +567,16 @@ async def create_movie_files(movie_name, tmdb_data, url_line):
             logging.error(f"Uyarı: Film detayları için TMDb API isteği başarısız oldu.")
 
 async def create_default_strm(media_name, url_line):
+    global url_count  # Global değişkeni kullan
+    global remaining_url_count  # Global değişkeni kullan
     media_folder = os.path.join(movies_folder_path, sanitize_filename(media_name))
     os.makedirs(media_folder, exist_ok=True)
     media_strm_path = os.path.join(media_folder, f"{sanitize_filename(media_name)}.strm")
     
     async with aiofiles.open(media_strm_path, 'w', encoding='utf-8') as media_strm_file:
         await media_strm_file.write(url_line)
-        logging.warning(f"Uyarı: '{media_name}' için TMDb verisi bulunamadı. STRM dosyası oluşturuldu: {media_strm_path}")
+        remaining_url_count -= 1  # Geri sayımı azalt
+        logging.warning(f"{url_count} / {remaining_url_count} kaldı - Uyarı: '{media_name}' için TMDb verisi bulunamadı. STRM dosyası oluşturuldu: {media_strm_path}")
 
 async def process_m3u_file(m3u_file_path, output_folder_path, channels_data):
     async with aiofiles.open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:

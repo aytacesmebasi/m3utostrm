@@ -126,6 +126,31 @@ def create_nfo(data, file_path, is_tv=False):
 # Suffix pattern
 suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
 
+# Group-title çeviri sözlüğü
+category_translation = {
+    "general": "Genel",
+    "business": "İş",
+    "children": "Çocuk",
+    "classic": "Klasik",
+    "comedy": "Komedi",
+    "documentary": "Belgesel",
+    "education": "Eğitim",
+    "entertainment": "Eğlence",
+    "family": "Aile",
+    "game": "Oyun",
+    "legislative": "Mevzuat",
+    "lifestyle": "Yaşam Tarzı",
+    "movies": "Filmler",
+    "music": "Müzik",
+    "news": "Haberler",
+    "religious": "Dini",
+    "science": "Bilim",
+    "shop": "Alışveriş",
+    "sports": "Spor",
+    "travel": "Seyahat",
+    "weather": "Hava Durumu"
+}
+
 # M3U dosyasını okuyun ve STRM/NFO dosyalarını oluşturun
 with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
     lines = m3u_file.readlines()
@@ -156,11 +181,15 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                         # İsim temizleme
                         cleaned_media_name = suffix_pattern.sub('', media_name).strip()
                         cleaned_media_name = sanitize_filename(cleaned_media_name)
+
+                        # Köşeli parantez içindeki değerleri 'bracketsin' olarak ayır
+                        bracketsin_match = re.search(r'\[(.*?)\]', media_name)
+                        bracketsin = bracketsin_match.group(1) if bracketsin_match else ''
                         
                         # IPTV-Org API'den kanal bilgilerini kontrol et
                         channel_info = next((channel for channel in channels_data if channel["name"].lower() == cleaned_media_name.lower()), None)
                         if channel_info:
-                            channel_name = channel_info.get("name", cleaned_media_name)
+                            channel_name = channel_info.get("name", media_name)  # Temizlenmemiş ismi kullan
                             logo = channel_info.get("logo", "")
                             id_ = channel_info.get("id", "")
                             owners = ', '.join(channel_info.get("owners", []))
@@ -168,8 +197,11 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                             categories = ', '.join(channel_info.get("categories", []))
                             is_nsfw = channel_info.get("is_nsfw", False)
                             
+                            # Group-title değerini Türkçeleştirin
+                            translated_categories = ', '.join([category_translation.get(cat, cat) for cat in categories.split(', ')])
+                            
                             # Temizlenmiş ismi ve diğer bilgileri .m3u dosyasına yazın
-                            updated_channels_file.write(f"#EXTINF:-1 group-title=\"{categories}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"TR\" is-nsfw=\"{is_nsfw}\", {channel_name}\n{url_line}\n")
+                            updated_channels_file.write(f"#EXTINF:-1 group-title=\"{translated_categories}; {bracketsin}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"TR\" is-nsfw=\"{is_nsfw}\", {media_name}\n{url_line}\n")
                             print(f"URL '.ts' ile bitiyor ve updated_channels.m3u dosyasına eklendi: {url_line}")
                         else:
                             print(f"Uyarı: '{cleaned_media_name}' için IPTV-Org kanal bilgisi bulunamadı.")
@@ -251,5 +283,3 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
             else:
                 print(f"Uyarı: {extinf_line} için #EXTINF satırı bekleniyor.")
                 i += 1  # Bu satırı atla ve bir sonraki satıra geç
-
-print("STRM ve NFO dosyaları başarıyla oluşturuldu.")

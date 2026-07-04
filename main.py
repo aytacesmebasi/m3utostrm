@@ -37,11 +37,37 @@ category_translation = {
     "weather": "Hava Durumu"
 }
 
+DEFAULT_CATEGORY = "Bilinmeyen"
+
+def translate_category(category):
+    return category_translation.get(category.lower(), DEFAULT_CATEGORY)
+
+def update_missing_translations(channels):
+    missing_categories = set()
+    for channel in channels:
+        category = channel.get('group-title', 'Bilinmeyen')
+        if category.lower() not in category_translation:
+            missing_categories.add(category)
+    
+    if missing_categories:
+        logger.info("Eksik çeviriler:")
+        for category in missing_categories:
+            logger.info(f"- {category}")
+
+def fetch_and_process_channels(api_url):
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()  # HTTP hatalarını kontrol et
+        channels = response.json()
+        update_missing_translations(channels)
+        # Kanalları işle
+        return channels
+    except requests.RequestException as e:
+        logging.error(f"API isteği başarısız oldu: {e}")
+        return []
+
 # TMDb API anahtarını girin
 tmdb_api_key = 'YOUR_API_KEY'
-
-# KaynakM3U dosya yolunu belirleyin
-m3u_file_path = r'C:\Users\csmbs\Downloads\2024.m3u'
 
 # KaynakM3U dosya yolunu belirleyin
 current_working_directory = os.getcwd()
@@ -58,9 +84,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v2.1")
-logger.info("the requested URL was not found error has been fixed")
-
+logger.info("m3utostrm v2.2")
+logger.info("group title translation improved")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
@@ -298,6 +323,7 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
         # iptv-org API'den Türkiye kanal bilgilerini çek
         response = fetch_data("https://iptv-org.github.io/api/channels.json")
         if response:
+            logging.info(f"iptv-org API cache dosyası oluşturuldu")
             channels_data = [channel for channel in response if channel.get('country') == your_language_code]
         else:
             logging.error("Uyarı: IPTV-Org API isteği başarısız oldu.")

@@ -8,10 +8,23 @@ from requests.packages.urllib3.util.retry import Retry
 import requests_cache
 import logging
 
-
-
 # Loglama yapılandırması
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    stream=sys.stdout, 
+    format='%(asctime)s - %(levelname)s - %(message)s', 
+    level=logging.INFO,
+    encoding='utf-8'
+)
+
+# Version information
+logger.info("m3utostrm v2.5")
+logger.info("the channel that cannot be found with the API is also written to the new m3u file")
+
+# Kullanıcı verileri
+tmdb_api_key = 'YOUR_API_KEY'
+iptvurl = 'YOUR_IPTV_URL'  # Buraya IPTV URL'nizi yazın
+iptvusername = 'YOUR_IPTV_USERNAME'   # Buraya IPTV kullanıcı adınızı yazın
+iptvpassword = 'YOUR_IPTV_PASSWORD'   # Buraya IPTV şifrenizi yazın
 
 # Filtrelenecek ülke kodu
 your_language_code = 'TR'
@@ -70,10 +83,12 @@ def fetch_and_process_channels(api_url):
         logging.error(f"API isteği başarısız oldu: {e}")
         return []
 
-# TMDb API anahtarını girin
-tmdb_api_key = 'YOUR_API_KEY'
+#output_files klasörü oluşturma
+current_working_directory = os.getcwd()
+output_folder_path = os.path.join(current_working_directory, 'output_files')
+os.makedirs(output_folder_path, exist_ok=True)
 
-# Kaynak M3U dosya yolunu belirleyin
+# Kaynak M3U dosyasını indirme
 url = f"{iptvurl}/get.php?username={iptvusername}&password={iptvpassword}&type=m3u"
 m3u_file_path = os.path.join(output_folder_path, 'm3u2strm.m3u')
 try:
@@ -91,20 +106,13 @@ try:
 except RequestException as e:
     print(f"Dosya indirme başarısız. Hata: {e}")
 
-#output_files klasörü oluşturma
-output_folder_path = r'C:\Users\csmbs\Downloads\output_files'
-os.makedirs(output_folder_path, exist_ok=True)
-
 # Log dosyalama
-logger = logging.getLogger()
-file_handler = logging.FileHandler(r'C:\Users\csmbs\Downloads\output_files\m3u2strm.log')  # 'app.log' adında bir log dosyası oluşturur
+log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
+file_handler = logging.FileHandler(log_file_path)  # 'app.log' adında bir log dosyası oluşturur
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
+logger = logging.getLogger()
 logger.addHandler(file_handler)
-
-# Version information
-logger.info("m3utostrm v2.4")
-logger.info("library control added")
 
 # Kütüphane listesi
 required_libraries = [
@@ -411,6 +419,9 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                             updated_channels_file.write(f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"TR\" is-nsfw=\"{is_nsfw}\", {media_name}\n{url_line}\n")
                             logging.info(f"URL '.ts' ile bitiyor ve updated_channels.m3u dosyasına eklendi: {url_line}")
                         else:
+                            # Bilgi bulunamadığında varsayılan değerlerle ekleyin
+                            group_title = 'Bilinmeyen'
+                            updated_channels_file.write(f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-name=\"{cleaned_media_name}\" tvg-country=\"TR\" is-nsfw=\"false\", {media_name}\n{url_line}\n")
                             logging.error(f"Uyarı: '{cleaned_media_name}' için IPTV-Org kanal bilgisi bulunamadı.")
                     else:
                         # Porn URL kontrolü

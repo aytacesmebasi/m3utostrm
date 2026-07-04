@@ -3,10 +3,6 @@ import re
 import requests
 import logging
 
-current_working_directory = os.getcwd()
-output_folder_path = os.path.join(current_working_directory, 'output_files')
-os.makedirs(output_folder_path, exist_ok=True)
-
 # Loglama yapılandırması
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -14,11 +10,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 your_language_code = 'TR'
 
 # TMDb API anahtarını girin
-tmdb_api_key = 'YOUR_API_KEY''
+tmdb_api_key = 'YOUR_API_KEY'
 
 # KaynakM3U dosya yolunu belirleyin
-3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
-
+current_working_directory = os.getcwd()
+output_folder_path = os.path.join(current_working_directory, 'output_files')
+os.makedirs(output_folder_path, exist_ok=True)
+m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
 
 # Log dosyalama
 log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
@@ -29,8 +27,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v1.5")
-logger.info("nfo file content improved")
+logger.info("m3utostrm v1.6")
+logger.info("porn parsing improved")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
@@ -42,8 +40,6 @@ logging.info(f"Series Klasörü oluşturuldu: {series_folder_path}")
 porn_folder_path = os.path.join(output_folder_path, 'porn')
 os.makedirs(porn_folder_path, exist_ok=True)
 logging.info(f"Porn Klasörü oluşturuldu: {porn_folder_path}")
-
-
 
 # Group-title çeviri sözlüğü
 category_translation = {
@@ -75,8 +71,14 @@ suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?
 
 # URL'nin "porn" içerip içermediğini kontrol etme fonksiyonu
 def is_porn_url(url):
-    porn_patterns = [r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX']
-    return any(re.search(pattern, url, re.IGNORECASE) for pattern in porn_patterns)
+    porn_patterns = [
+        r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX', 
+        r'porn', r'Porn', r'SEX', r'Adult', r'NSFW', 
+        r'pay-per-view', r'live-stream', r'free-videos'
+    ]
+    combined_pattern = '|'.join(porn_patterns)
+    return re.search(combined_pattern, url, re.IGNORECASE) is not None
+
 
 # Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
 def sanitize_filename(filename):

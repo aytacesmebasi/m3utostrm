@@ -3,6 +3,10 @@ import re
 import requests
 import logging
 
+current_working_directory = os.getcwd()
+output_folder_path = os.path.join(current_working_directory, 'output_files')
+os.makedirs(output_folder_path, exist_ok=True)
+
 # Loglama yapılandırması
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -10,13 +14,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 your_language_code = 'TR'
 
 # TMDb API anahtarını girin
-tmdb_api_key = 'YOUR_API_KEY'
+tmdb_api_key = 'YOUR_API_KEY''
 
 # KaynakM3U dosya yolunu belirleyin
-current_working_directory = os.getcwd()
-output_folder_path = os.path.join(current_working_directory, 'output_files')
-os.makedirs(output_folder_path, exist_ok=True)
-m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
+3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
+
 
 # Log dosyalama
 log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
@@ -27,8 +29,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v1.4")
-logger.info("logging minor changes")
+logger.info("m3utostrm v1.5")
+logger.info("nfo file content improved")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
@@ -170,7 +172,10 @@ def create_nfo(data, file_path, is_tv=False):
         <thumb>https://image.tmdb.org/t/p/original{cast['profile_path']}</thumb>
     </actor>"""
 
-        nfo_content += "\n</movie>"
+        if is_tv:
+            nfo_content += "\n</tvshow>"
+        else:
+            nfo_content += "\n</movie>"
 
         with open(file_path, 'w', encoding='utf-8') as nfo_file:
             nfo_file.write(nfo_content)

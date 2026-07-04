@@ -10,13 +10,14 @@ import logging
 import aiohttp
 import asyncio
 import aiofiles
+from datetime import datetime
 
-#output_files klasörü oluşturma
+# Create output_files folder
 current_working_directory = os.getcwd()
 output_folder_path = os.path.join(current_working_directory, 'output_files')
 os.makedirs(output_folder_path, exist_ok=True)
 
-# Loglama yapılandırması ve dosyalaması
+# Logging configuration and filing
 logging.basicConfig(
     stream=sys.stdout, 
     format='%(asctime)s - %(levelname)s - %(message)s', 
@@ -25,50 +26,50 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 log_file_path = os.path.join(output_folder_path, 'm3u2strm.log')
-file_handler = logging.FileHandler(log_file_path, encoding='utf-8')  # 'app.log' adında bir log dosyası oluşturur
+file_handler = logging.FileHandler(log_file_path, encoding='utf-8')  # Creates a log file named 'm3u2strm.log'
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.8")
-logger.info("if there is a strm or nfo file, it does not process")
+logger.info("m3utostrm v3.9")
+logger.info("it processes the differences between the old and new downloaded m3u files")
 
-# Kullanıcı verileri
+# User data
 tmdb_api_key = 'YOUR_API_KEY'
-iptvurl = 'YOUR_IPTV_URL'  # Buraya IPTV URL'nizi yazın
-iptvusername = 'YOUR_IPTV_USERNAME'   # Buraya IPTV kullanıcı adınızı yazın
-iptvpassword = 'YOUR_IPTV_PASSWORD'   # Buraya IPTV şifrenizi yazın
+iptvurl = 'YOUR_IPTV_URL'  # Write your IPTV URL here
+iptvusername = 'YOUR_IPTV_USERNAME'   # Write your IPTV username here
+iptvpassword = 'YOUR_IPTV_PASSWORD'   # Write your IPTV password here
 
-# Filtrelenecek ülke kodu
+# Country code to filter
 your_language_code = 'TR'
 
-# Group-title çeviri sözlüğü
+# For those who want to use Group-title translation dictionary for IPTV broadcasts in languages ​​other than English
 category_translation = {
-    "general": "Genel",
-    "business": "İş",
-    "children": "Çocuk",
-    "classic": "Klasik",
-    "comedy": "Komedi",
-    "documentary": "Belgesel",
-    "education": "Eğitim",
-    "entertainment": "Eğlence",
-    "family": "Aile",
-    "game": "Oyun",
-    "legislative": "Mevzuat",
-    "lifestyle": "Yaşam Tarzı",
-    "movies": "Filmler",
-    "music": "Müzik",
-    "news": "Haberler",
-    "religious": "Dini",
-    "science": "Bilim",
-    "shop": "Alışveriş",
-    "sports": "Spor",
-    "travel": "Seyahat",
-    "weather": "Hava Durumu"
+    "general": "General",
+    "business": "Business",
+    "children": "Children",
+    "classic": "Classic",
+    "comedy": "Comedy",
+    "documentary": "Documentary",
+    "education": "Education",
+    "entertainment": "Entertainment",
+    "family": "Family",
+    "game": "Game",
+    "legislative": "Legislative",
+    "lifestyle": "Lifestyle",
+    "movies": "Movies",
+    "music": "Music",
+    "news": "News,
+    "religious": "Religious",
+    "science": "Science",
+    "shop": "Shop",
+    "sports": "Sports",
+    "travel": "Travel",
+    "weather": "Weather"
 }
 
-DEFAULT_CATEGORY = "Bilinmeyen"
+DEFAULT_CATEGORY = "Unknownn"
 
 def translate_category(category):
     return category_translation.get(category.lower(), DEFAULT_CATEGORY)
@@ -76,12 +77,12 @@ def translate_category(category):
 def update_missing_translations(channels):
     missing_categories = set()
     for channel in channels:
-        category = channel.get('group-title', 'Bilinmeyen')
+        category = channel.get('group-title', 'Unknownn')
         if category.lower() not in category_translation:
             missing_categories.add(category)
     
     if missing_categories:
-        logger.info("Eksik çeviriler:")
+        logger.info("Missing translations:")
         for category in missing_categories:
             logger.info(f"- {category}")
 
@@ -89,22 +90,24 @@ async def fetch_and_process_channels(api_url):
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as response:
-                response.raise_for_status()  # HTTP hatalarını kontrol et
+                response.raise_for_status()  # Check for HTTP errors
                 channels = await response.json()
                 update_missing_translations(channels)
-                # Kanalları işle
+                # Process channels
                 return channels
     except aiohttp.ClientError as e:
-        logging.error(f"API isteği başarısız oldu: {e}")
+        logging.error(f"API request failed: {e}")
         return []
 
-# Kütüphane listesi
+# Library list
 required_libraries = [
-    "requests"
+    "requests",
+    "aiohttp",
+    "aiohttp"
 ]
 
 def install(package):
-    """Belirtilen paketi yükler."""
+    """Installs the specified package."""
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 def main():
@@ -112,35 +115,144 @@ def main():
         try:
             __import__(library)
         except ImportError:
-            logging.info(f"{library} yüklü değil. Yükleniyor...")
+            logging.info(f"{library} is not loaded. Loading...")
             install(library)
         else:
-            logging.info(f"{library} zaten yüklü.")
+            logging.info(f"{library} is already installed.")
 
 if __name__ == "__main__":
     main()
 
-# Kaynak M3U dosyasını indirme
-url = f"{iptvurl}/get.php?username={iptvusername}&password={iptvpassword}&type=m3u"
-m3u_file_path = os.path.join(output_folder_path, 'm3u2strm.m3u')
-try:
-    # Dosyayı indirme işlemi
-    response = requests.get(url)
-    
-    # Yanıtın başarılı olup olmadığını kontrol et
-    if response.status_code == 200:
-        # Dosyayı belirtilen yolda kaydet
-        with open(m3u_file_path, 'wb') as file:
-            file.write(response.content)
-        print(f"Dosya başarıyla indirildi ve '{m3u_file_path}' olarak kaydedildi.")
-    else:
-        print(f"HTTP {response.status_code} hata kodu ile karşılaşıldı.")
-except RequestException as e:
-    print(f"Dosya indirme başarısız. Hata: {e}")
+# Get date and time information for file name
+now = datetime.now()
+formatted_date = now.strftime('%d%m%y%H%M')  # gg, aa, yy, ss, dd formatted
+filename = f'{formatted_date}.m3u'
+file_path = os.path.join(output_folder_path, filename)
 
-# M3U dosyasındaki URL'leri sayan fonksiyon
+# Download M3U file
+def download_m3u(url, username, password, filename):
+    try:
+        # Create URL
+        full_url = f"{url}/get.php?username={username}&password={password}&type=m3u"
+        
+        # Make a request
+        response = requests.get(full_url)
+        response.raise_for_status()  # Throws an exception if there is an error
+        
+        # Save the file
+        with open(filename, 'wb') as file:
+            file.write(response.content)
+        
+        logger.info(f"{filename} was downloaded successfully.")
+    
+    except requests.RequestException as e:
+        logger.error(f"Download failed: {e}")
+
+# Call the function
+download_m3u(iptvurl, iptvusername, iptvpassword, file_path)
+
+# Directory containing '.m3u' files
+directory = output_folder_path
+
+# Get file names, exclude the file we downloaded
+files = [f for f in os.listdir(directory) if f.endswith('.m3u') and f != filename]
+
+def parse_filename(filename):
+    # Split file name into day, month, year, hour and minute
+    base, ext = os.path.splitext(filename)
+    if len(base) == 10 and base[2].isdigit() and base[4].isdigit() and base[6].isdigit() and base[8].isdigit():
+        try:
+            g = int(base[:2])
+            a = int(base[2:4])
+            y = int(base[4:6])
+            s = int(base[6:8])
+            d = int(base[8:10])
+            return (y, a, g, s, d)
+        except ValueError:
+            return None
+    return None
+
+# Parse file names and compare dates
+latest_file = None
+latest_date = None
+
+for file in files:
+    parsed_date = parse_filename(file)
+    if parsed_date:
+        current_date = datetime(year=2000 + parsed_date[0], month=parsed_date[1], day=parsed_date[2], hour=parsed_date[3], minute=parsed_date[4])
+        if latest_date is None or current_date > latest_date:
+            latest_date = current_date
+            latest_file = file
+
+if latest_file:
+    logger.info(f"Latest file: {latest_file}")
+else:
+    logger.error("No valid '.m3u' file found.")
+    latest_file = None  # If the latest file is not available, the comparison will not be made.
+
+def extract_lines_from_m3u(file_path):
+    urls_with_extinf = {}
+    current_extinf = None
+
+    with open(file_path, 'r', encoding='utf-8') as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith("#EXTINF:"):
+                current_extinf = line
+            elif line and not line.startswith("#"):
+                if current_extinf:
+                    urls_with_extinf[line] = current_extinf
+                current_extinf = None
+    return urls_with_extinf
+
+def compare_m3u_files(old_file, new_file):
+    old_urls_with_extinf = extract_lines_from_m3u(old_file)
+    new_urls_with_extinf = extract_lines_from_m3u(new_file)
+
+    # Find URLs in the new file that are not in the old file
+    difference = {url: new_urls_with_extinf[url] for url in new_urls_with_extinf if url not in old_urls_with_extinf}
+
+    return difference
+
+def write_new_m3u(difference, output_file):
+    with open(output_file, 'w', encoding='utf-8') as file:
+        file.write("#EXTM3U\n")  # M3U file title
+        for url, extinf in difference.items():
+            file.write(f"{extinf}\n{url}\n")
+
+# Specify file paths
+m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
+
+# Comparison operation and writing the results
+if latest_file:
+    new_urls_not_in_old = compare_m3u_files(os.path.join(directory, latest_file), file_path)
+    
+    if new_urls_not_in_old:
+        logging.info("URLs and related #EXTINF lines that are not in the old file but are in the new file are written to the new file...")
+        write_new_m3u(new_urls_not_in_old, m3u_file_path)
+        logging.info(f"New M3U file saved as '{m3u_file_path}'.")
+    else:
+        # Create an empty file if all URLs exist in the old file
+        logging.info("All URLs are present in old file. Creating empty 'tobeprocess.m3u' file...")
+        with open(m3u_file_path, 'w', encoding='utf-8') as file:
+            file.write("#EXTM3U\n")  # M3U file title
+        logging.info(f"Empty M3U file saved as '{m3u_file_path}'.")
+    
+    # Delete the newest file
+    os.remove(os.path.join(directory, latest_file))
+    logging.info(f"The newest file '{latest_file}' was deleted.")
+else:
+    # If there is no latest file, we just save the downloaded file as 'tobeprocess.m3u'
+    logging.info("The latest file was not found, only the downloaded file is saved as 'tobeprocess.m3u'...")
+    with open(file_path, 'r', encoding='utf-8') as new_file:
+        new_lines = new_file.readlines()
+    with open(m3u_file_path, 'w', encoding='utf-8') as output_file:
+        output_file.writelines(new_lines)
+    logging.info(f"The downloaded M3U file was saved as '{m3u_file_path}'.")
+
+# Function to count URLs in M3U file
 url_count = 0
-logging.info(f"Başlangıçta url_count {url_count} olarak tanımlandı.")
+logging.info(f"Initially url_count was defined as {url_count}.")
 def count_urls_in_m3u(m3u_file_path):
     with open(m3u_file_path, 'r', encoding='utf-8') as file:
         lines = file.readlines()
@@ -149,20 +261,22 @@ def count_urls_in_m3u(m3u_file_path):
     return url_count
 url_count = count_urls_in_m3u(m3u_file_path)
 remaining_url_count = url_count
-logging.info(f"Dosyada {url_count} adet URL bulunmaktadır.")
+logging.info(f"There are {url_count} URLs in the file.")
 
-# STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
+# Create a folder to save STRM and NFO files
 movies_folder_path = os.path.join(output_folder_path, 'movies')
 os.makedirs(movies_folder_path, exist_ok=True)
-logging.info(f"Movies Klasörü oluşturuldu: {movies_folder_path}")
+logging.info(f"Movies Folder created: {movies folder path}")
+
 series_folder_path = os.path.join(output_folder_path, 'series')
 os.makedirs(series_folder_path, exist_ok=True)
-logging.info(f"Series Klasörü oluşturuldu: {series_folder_path}")
+logging.info(f"Series Folder created: {series_folder_path}")
+
 porn_folder_path = os.path.join(output_folder_path, 'porn')
 os.makedirs(porn_folder_path, exist_ok=True)
-logging.info(f"Porn Klasörü oluşturuldu: {porn_folder_path}")
+logging.info(f"Porn Folder created: {porn_folder_path}")
 
-# Api hata mesajı kontrolü
+# Check API error message
 async def get_with_retries(url, retries=3, backoff_factor=0.3, status_forcelist=(500, 502, 504)):
     delay = backoff_factor
     for attempt in range(retries):
@@ -190,7 +304,7 @@ async def get_with_retries(url, retries=3, backoff_factor=0.3, status_forcelist=
 # Suffix pattern
 suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
 
-# URL'nin "porn" içerip içermediğini kontrol etme fonksiyonu
+# Function to check if URL contains "porn"
 def is_porn_url(url):
     porn_patterns = [
         r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX', 
@@ -200,14 +314,14 @@ def is_porn_url(url):
     combined_pattern = '|'.join(porn_patterns)
     return re.search(combined_pattern, url, re.IGNORECASE) is not None
 
-# Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
+# Function to remove invalid characters from file and folder names
 def sanitize_filename(filename):
     invalid_chars = '<>:"/\\|?*'
     for char in invalid_chars:
         filename = filename.replace(char, '')
     return filename
 
-# Ad temizleme fonksiyonu (film ve dizi için)
+# Name cleaning function (for movies and series)
 def clean_name(name, is_tv=False):
     if is_tv:
         name = re.sub(r'\s*S\d{2}\s*E\d{2}', '', name)
@@ -216,9 +330,9 @@ def clean_name(name, is_tv=False):
         name = re.sub(r'\s*[-]?\s*\d{4}', '', name)
     return sanitize_filename(name.strip())
 
-# TMDb arama fonksiyonu
+# TMDb search function
 class APIRequestError(Exception):
-    """API istekleri için özel hata sınıfı."""
+    """Custom error class for API requests."""
     def __init__(self, message, status_code=None):
         super().__init__(message)
         self.status_code = status_code
@@ -230,14 +344,14 @@ async def fetch_data(session, url):
             return await response.json()
     except aiohttp.ClientResponseError as e:
         if e.status == 404:
-            logging.warning(f"API isteği başarısız oldu: 404 Not Found - {url}")
-            return None  # 404 hatasında None döndür
+            logging.warning(f"API request failed: 404 Not Found - {url}")
+            return None  # Return None on 404 error
         else:
-            logging.error(f"API isteği başarısız oldu: {e} - Status Code: {e.status}")
-            raise APIRequestError(f"API isteği başarısız oldu: {e.message}", status_code=e.status)
+            logging.error(f"API request failed: {e} - Status Code: {e.status}")
+            raise APIRequestError(f"API request failed: {e.message}", status_code=e.status)
     except aiohttp.ClientError as e:
-        logging.error(f"API isteği başarısız oldu: {e}")
-        raise APIRequestError(f"API isteği başarısız oldu: {e}")
+        logging.error(f"API request failed: {e}")
+        raise APIRequestError(f"API request failed: {e}")
 
 
 async def search_tmdb(query, is_tv=False):
@@ -252,13 +366,13 @@ async def search_tmdb(query, is_tv=False):
             if results:
                 return results[0]
             else:
-                logging.warning(f"Uyarı: '{query}' için TMDb'de sonuç bulunamadı.")
+                logging.warning(f"Warning: No results found in TMDb for '{query}'.")
         except APIRequestError as e:
-            logging.error(f"TMDb API isteği başarısız oldu: {e}")
+            logging.error(f"TMDb API request failed: {e}")
     
     return None
 
-# NFO dosyası oluşturma fonksiyonu (film ve dizi için)
+# NFO file creation function (for movies and series)
 async def create_nfo(data, file_path, is_tv=False):
     try:
         if is_tv:
@@ -268,26 +382,26 @@ async def create_nfo(data, file_path, is_tv=False):
         
         async with aiofiles.open(file_path, 'w', encoding='utf-8') as nfo_file:
             await nfo_file.write(content)
-        logging.info(f"NFO dosyası oluşturuldu: {file_path}")
+        logging.info(f"NFO file created: {file_path}")
     except Exception as e:
-        logging.error(f"Bir hata oluştu: {e}")
+        logging.error(f"An error occurred: {e}")
 
 def generate_tv_nfo_content(data):
-    name = data.get('name', 'Bilinmiyor')
+    name = data.get('name', 'Unknown')
     original_name = data.get('original_name', name)
-    rating = data.get('vote_average', 'Bilinmiyor')
+    rating = data.get('vote_average', 'Unknown')
     year = data.get('first_air_date', '')[:4]
-    votes = data.get('vote_count', 'Bilinmiyor')
-    overview = data.get('overview', 'Açıklama mevcut değil.')
+    votes = data.get('vote_count', 'Unknown')
+    overview = data.get('overview', 'Description not available.')
     poster_path = data.get('poster_path', '')
     backdrop_path = data.get('backdrop_path', '')
     mpaa = 'TV-MA' if data.get('adult') else 'TV-G'
-    country = ', '.join(data.get('origin_country', ['Bilinmiyor']))
-    premiered = data.get('first_air_date', 'Bilinmiyor')
-    status = data.get('status', 'Bilinmiyor')
-    tv_id = data.get('id', 'Bilinmiyor')
-    genre = ', '.join([genre.get('name', 'Bilinmiyor') for genre in data.get('genres', [])])
-    studio = ', '.join([company.get('name', 'Bilinmiyor') for company in data.get('production_companies', [])])
+    country = ', '.join(data.get('origin_country', ['Unknown']))
+    premiered = data.get('first_air_date', 'Unknown')
+    status = data.get('status', 'Unknown')
+    tv_id = data.get('id', 'Unknown')
+    genre = ', '.join([genre.get('name', 'Unknown') for genre in data.get('genres', [])])
+    studio = ', '.join([company.get('name', 'Unknown') for company in data.get('production_companies', [])])
     
     content = f"""
 <tvshow>
@@ -310,10 +424,10 @@ def generate_tv_nfo_content(data):
     <studio>{studio}</studio>
 """
 
-    # Oyuncular
-    for cast in data.get('credits', {}).get('cast', [])[:10]:  # İlk 10 oyuncu
-        name = cast.get('name', 'Bilinmiyor')
-        role = cast.get('character', 'Bilinmiyor')
+    # Players
+    for cast in data.get('credits', {}).get('cast', [])[:10]:  # Top 10 players
+        name = cast.get('name', 'Unknown')
+        role = cast.get('character', 'Unknown')
         profile_path = cast.get('profile_path', '')
         content += f"""
     <actor>
@@ -326,28 +440,28 @@ def generate_tv_nfo_content(data):
     return content
 
 def generate_movie_nfo_content(data):
-    title = data.get('title', 'Bilinmiyor')
-    original_title = data.get('original_title', 'Bilinmiyor')
-    rating = data.get('vote_average', 'Bilinmiyor')
+    title = data.get('title', 'Unknown')
+    original_title = data.get('original_title', 'Unknown')
+    rating = data.get('vote_average', 'Unknown')
     year = data.get('release_date', '')[:4]
-    votes = data.get('vote_count', 'Bilinmiyor')
-    outline = data.get('overview', 'Açıklama mevcut değil.')
-    plot = data.get('overview', 'Açıklama mevcut değil.')
-    tagline = data.get('tagline', 'Bilinmiyor')
-    runtime = data.get('runtime', 'Bilinmiyor')
+    votes = data.get('vote_count', 'Unknown')
+    outline = data.get('overview', 'Description not available.')
+    plot = data.get('overview', 'Description not available.')
+    tagline = data.get('tagline', 'Unknown')
+    runtime = data.get('runtime', 'Unknown')
     poster_path = data.get('poster_path', '')
     backdrop_path = data.get('backdrop_path', '')
     mpaa = 'PG-13' if data.get('adult') else 'G'
-    country = ', '.join([country.get('name', 'Bilinmiyor') for country in data.get('production_countries', [])])
-    premiered = data.get('release_date', 'Bilinmiyor')
-    status = 'Released' if data.get('status') == 'Released' else 'Bilinmiyor'
-    imdb_id = data.get('imdb_id', 'Bilinmiyor')
-    movie_id = data.get('id', 'Bilinmiyor')
-    genre = ', '.join([genre.get('name', 'Bilinmiyor') for genre in data.get('genres', [])])
-    studio = ', '.join([company.get('name', 'Bilinmiyor') for company in data.get('production_companies', [])])
-    trailer = 'https://www.youtube.com/watch?v=' + data.get('videos', {}).get('results', [{}])[0].get('key', '') if data.get('videos', {}).get('results') else 'Bilinmiyor'
-    director = ', '.join([member.get('name', 'Bilinmiyor') for member in data.get('credits', {}).get('crew', []) if member.get('job') == 'Director'])
-    credits = ', '.join([member.get('name', 'Bilinmiyor') for member in data.get('credits', {}).get('crew', []) if member.get('job') == 'Writer'])
+    country = ', '.join([country.get('name', 'Unknown') for country in data.get('production_countries', [])])
+    premiered = data.get('release_date', 'Unknown')
+    status = 'Released' if data.get('status') == 'Released' else 'Unknown'
+    imdb_id = data.get('imdb_id', 'Unknown')
+    movie_id = data.get('id', 'Unknown')
+    genre = ', '.join([genre.get('name', 'Unknown') for genre in data.get('genres', [])])
+    studio = ', '.join([company.get('name', 'Unknown') for company in data.get('production_companies', [])])
+    trailer = 'https://www.youtube.com/watch?v=' + data.get('videos', {}).get('results', [{}])[0].get('key', '') if data.get('videos', {}).get('results') else 'Unknown'
+    director = ', '.join([member.get('name', 'Unknown') for member in data.get('credits', {}).get('crew', []) if member.get('job') == 'Director'])
+    credits = ', '.join([member.get('name', 'Unknown') for member in data.get('credits', {}).get('crew', []) if member.get('job') == 'Writer'])
     
     content = f"""
 <movie>
@@ -377,10 +491,10 @@ def generate_movie_nfo_content(data):
     <credits>{credits}</credits>
 """
 
-    # Oyuncular
-    for cast in data.get('credits', {}).get('cast', [])[:10]:  # İlk 10 oyuncu
-        name = cast.get('name', 'Bilinmiyor')
-        role = cast.get('character', 'Bilinmiyor')
+    # Players
+    for cast in data.get('credits', {}).get('cast', [])[:10]:  # Top 10 players
+        name = cast.get('name', 'Unknown')
+        role = cast.get('character', 'Unknown')
         thumb = cast.get('profile_path', '')
         content += f"""
     <actor>
@@ -392,15 +506,15 @@ def generate_movie_nfo_content(data):
     content += "\n</movie>"
     return content
 
-# M3U dosyasını okuyun ve STRM/NFO dosyalarını oluşturun
+# Read M3U file and create STRM/NFO files
 async def fetch_iptv_channels(api_url, country_code):
     async with aiohttp.ClientSession() as session:
         response = await fetch_data(session, api_url)
         if response:
-            logging.info("iptv-org API cache dosyası oluşturuldu")
+            logging.info("iptv-org API cache file created")
             return [channel for channel in response if channel.get('country') == country_code]
         else:
-            logging.error("Uyarı: IPTV-Org API isteği başarısız oldu.")
+            logging.warning("Warning: IPTV-Org API request failed.")
             return []
 
 async def process_extinf_line(extinf_line, url_line, channels_data, output_file):
@@ -429,8 +543,8 @@ def extract_bracketsin(media_name):
     return bracketsin_match.group(1).replace(' ', '') if bracketsin_match else ''
 
 async def write_channel_info(channel_info, media_name, url_line, bracketsin, output_file_path):
-    global url_count  # Global değişkeni kullan
-    global remaining_url_count  # Global değişkeni kullan
+    global url_count  # Use global variable
+    global remaining_url_count  # Use global variable
     file_name = "updated_channels.m3u"
     output_file_path = os.path.join(output_folder_path, file_name)
     channel_name = channel_info.get("name", media_name)
@@ -442,29 +556,29 @@ async def write_channel_info(channel_info, media_name, url_line, bracketsin, out
     
     categories = ', '.join(channel_info.get("categories", []))
     translated_categories = ', '.join([category_translation.get(cat, cat) for cat in categories.split(', ')])
-    group_title = translated_categories if categories else 'Bilinmeyen'
+    group_title = translated_categories if categories else 'Unknown'
     
-    # Asenkron olarak dosyayı yaz
+    # Write file asynchronously
     async with aiofiles.open(output_file_path, mode='a', encoding='utf-8') as output_file:
-        await output_file.write(f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"TR\" is-nsfw=\"{is_nsfw}\", {media_name}\n{url_line}\n")
+        await output_file.write(f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"{your_language_code}\" is-nsfw=\"{is_nsfw}\", {media_name}\n{url_line}\n")
     
-    remaining_url_count -= 1  # Geri sayımı azalt
-    logging.info(f"{url_count} / {remaining_url_count} kaldı - URL '.ts' ile bitiyor ve {output_file_path} dosyasına eklendi: {url_line}")
+    remaining_url_count -= 1  # Decrease countdown
+    logging.info(f"{url_count} / {remaining_url_count} left - URL ends with '.ts' and added to {output_file_path}: {url_line}")
 
 async def write_default_channel_info(media_name, url_line, bracketsin, output_file_path):
-    global url_count  # Global değişkeni kullan
-    global remaining_url_count  # Global değişkeni kullan
+    global url_count  # Use global variable
+    global remaining_url_count  # Use global variable
     file_name = "updated_channels.m3u"
     output_file_path = os.path.join(output_folder_path, file_name)
-    group_title = 'Bilinmeyen'
-    content = f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-name=\"{sanitize_filename(media_name)}\" tvg-country=\"TR\" is-nsfw=\"false\", {media_name}\n{url_line}\n"
+    group_title = 'Unknown'
+    content = f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-name=\"{sanitize_filename(media_name)}\" tvg-country=\"{your_language_code}\" is-nsfw=\"false\", {media_name}\n{url_line}\n"
     
-    # Asenkron olarak dosyayı yaz
+    # Write file asynchronously
     async with aiofiles.open(output_file_path, mode='a', encoding='utf-8') as output_file:
         await output_file.write(content)
     
-    remaining_url_count -= 1  # Geri sayımı azalt
-    logging.warning(f"{url_count} / {remaining_url_count} kaldı - Uyarı: '{media_name}' için IPTV-Org kanal bilgisi bulunamadı.")
+    remaining_url_count -= 1  # Decrease countdown
+    logging.warning(f"{url_count} / {remaining_url_count} remaining - Warning: No IPTV-Org channel information found for '{media_name}'.")
 
 async def handle_non_ts_url(media_name, url_line):
     if is_porn_url(media_name):
@@ -483,24 +597,23 @@ async def handle_non_ts_url(media_name, url_line):
             await create_default_strm(media_name, url_line)
 
 async def create_porn_strm(media_name, url_line):
-    global url_count  # Global değişkeni kullan
-    global remaining_url_count  # Global değişkeni kullan
+    global url_count  # Use global variable
+    global remaining_url_count  # Use global variable
     porn_strm_path = os.path.join(porn_folder_path, f"{sanitize_filename(media_name)}.strm")
     
-    # STRM dosyasının varlığını kontrol et
+    # Check for existence of STRM file
     if not os.path.exists(porn_strm_path):
         async with aiofiles.open(porn_strm_path, 'w', encoding='utf-8') as porn_strm_file:
             await porn_strm_file.write(url_line)
-            remaining_url_count -= 1  # Geri sayımı azalt
-            logging.info(f"{url_count} / {remaining_url_count} kaldı - Porno için STRM dosyası oluşturuldu: {porn_strm_path}")
+            remaining_url_count -= 1  # Decrease countdown
+            logging.info(f"{url_count} / {remaining_url_count} left - STRM file created for porn: {porn_strm_path}")
     else:
-        remaining_url_count -= 1  # Geri sayımı azalt
-        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {porn_strm_path}")
-
+        remaining_url_count -= 1  # Decrease countdown
+        logging.info(f"{url_count} / {remaining_url_count} left - STRM file already exists: {porn_strm_path}")
 
 async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
-    global url_count  # Global değişkeni kullan
-    global remaining_url_count  # Global değişkeni kullan
+    global url_count  # Use global variable
+    global remaining_url_count  # Use global variable
     year = tmdb_data.get('first_air_date', '')[:4]
     season_episode_match = re.search(r'\s*S(\d{2})\s*E(\d{2})', media_name)
     season = season_episode_match.group(1) if season_episode_match else '01'
@@ -515,27 +628,27 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
     episode_strm_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.strm")
     episode_nfo_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.nfo")
     
-    # STRM dosyasının varlığını kontrol et, yoksa oluştur
+    # Check if STRM file exists, create it if not
     if not os.path.exists(episode_strm_path):
         async with aiofiles.open(episode_strm_path, 'w', encoding='utf-8') as episode_strm_file:
             await episode_strm_file.write(url_line)
-            remaining_url_count -= 1  # Geri sayımı azalt
-            logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {episode_strm_path}")
+            remaining_url_count -= 1  # Decrease countdown
+            logging.info(f"{url_count} / {remaining_url_count} left - STRM file created: {episode_strm_path}")
     else:
-        remaining_url_count -= 1  # Geri sayımı azalt
-        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {episode_strm_path}")
+        remaining_url_count -= 1  # Decrease countdown
+        logging.info(f"{url_count} / {remaining_url_count} remaining - STRM file already exists: {episode_strm_path}")
     
-    # NFO dosyalarının varlığını kontrol et, yoksa oluştur
+    # Check for existence of NFO files, create them if not
     if not os.path.exists(series_nfo_path) or not os.path.exists(season_nfo_path) or not os.path.exists(episode_nfo_path):
         async with aiohttp.ClientSession() as session:
-            # Dizi detaylarını TMDb API'den al ve NFO dosyalarını oluştur
-            show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
+            # Get sequence details from TMDb API and create NFO files
+            show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}?api_key={tmdb_api_key}&language={your_language_code}&append_to_response=credits,videos"
             show_details_response = await fetch_data(session, show_details_url)
             if show_details_response:
                 if not os.path.exists(series_nfo_path):
                     await create_nfo(show_details_response, series_nfo_path, is_tv=True)
                 
-                season_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}/season/{season}?api_key={tmdb_api_key}&language=tr"
+                season_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}/season/{season}?api_key={tmdb_api_key}&language={your_language_code}"
                 season_details_response = await fetch_data(session, season_details_url)
                 if season_details_response:
                     if not os.path.exists(season_nfo_path):
@@ -545,69 +658,69 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
                     if episode_details and not os.path.exists(episode_nfo_path):
                         await create_nfo(episode_details, episode_nfo_path, is_tv=True)
                     else:
-                        logging.warning(f"Uyarı: '{media_name}' için bölüm verisi bulunamadı veya NFO dosyası zaten mevcut.")
+                        logging.warning(f"Warning: Episode data for '{media_name}' not found or NFO file already exists.")
                 else:
-                    logging.error(f"Uyarı: Sezon detayları için TMDb API isteği başarısız oldu.")
+                    logging.warning(f"Warning: TMDb API request for season details failed.")
             else:
-                logging.error(f"Uyarı: Dizi detayları için TMDb API isteği başarısız oldu.")
+                logging.warning(f"Warning: TMDb API request for series details failed.")
     else:
-        logging.info("Tüm NFO dosyaları zaten mevcut.")
+        logging.info("All NFO files are already available.")
 
 async def create_movie_files(movie_name, tmdb_data, url_line):
-    global url_count  # Global değişkeni kullan
-    global remaining_url_count  # Global değişkeni kullan
+    global url_count  # Use global variable
+    global remaining_url_count  # Use global variable
     
-    # Film için klasör oluştur
+    # Create folder for movie
     year = tmdb_data.get('release_date', '')[:4]
     movie_folder = os.path.join(movies_folder_path, f"{movie_name} ({year})")
     os.makedirs(movie_folder, exist_ok=True)
     
-    # STRM ve NFO dosyalarının yollarını tanımla
+    # Define paths of STRM and NFO files
     movie_nfo_path = os.path.join(movie_folder, f"{movie_name} ({year}).nfo")
     movie_strm_path = os.path.join(movie_folder, f"{movie_name} ({year}).strm")
     
-    # STRM dosyasının varlığını kontrol et ve yoksa oluştur
+    # Check for existence of STRM file and create it if it does not exist
     if not os.path.exists(movie_strm_path):
         async with aiofiles.open(movie_strm_path, 'w', encoding='utf-8') as movie_strm_file:
             await movie_strm_file.write(url_line)
-            remaining_url_count -= 1  # Geri sayımı azalt
-            logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {movie_strm_path}")
+            remaining_url_count -= 1  # Decrease countdown
+            logging.info(f"{url_count} / {remaining_url_count} left - STRM file created: {movie_strm_path}")
     else:
-        remaining_url_count -= 1  # Geri sayımı azalt
-        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {movie_strm_path}")
+        remaining_url_count -= 1  # Decrease countdown
+        logging.info(f"{url_count} / {remaining_url_count} left - STRM file already exists: {movie_strm_path}")
     
-    # NFO dosyasının varlığını kontrol et ve yoksa oluştur
+    # Check for existence of NFO file and create it if it does not exist
     if not os.path.exists(movie_nfo_path):
         async with aiohttp.ClientSession() as session:
             movie_id = tmdb_data['id']
-            movie_details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
+            movie_details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={tmdb_api_key}&language={your_language_code}&append_to_response=credits,videos"
             movie_details_response = await fetch_data(session, movie_details_url)
             
             if movie_details_response:
                 await create_nfo(movie_details_response, movie_nfo_path, is_tv=False)
             else:
-                logging.error(f"Uyarı: Film detayları için TMDb API isteği başarısız oldu.")
+                logging.warning(f"Warning: TMDb API request for movie details failed.")
 
 async def create_default_strm(media_name, url_line):
-    global url_count  # Global değişkeni kullan
-    global remaining_url_count  # Global değişkeni kullan
+    global url_count  # Use global variable
+    global remaining_url_count  # Use global variable
     
-    # Medya için klasör oluştur
+    # Create folder for media
     media_folder = os.path.join(movies_folder_path, sanitize_filename(media_name))
     os.makedirs(media_folder, exist_ok=True)
     
-    # STRM dosyasının yolunu tanımla
+    # Define the path of the STRM file
     media_strm_path = os.path.join(media_folder, f"{sanitize_filename(media_name)}.strm")
     
-    # STRM dosyasının varlığını kontrol et ve yoksa oluştur
+    # Check for existence of STRM file and create it if it does not exist
     if not os.path.exists(media_strm_path):
         async with aiofiles.open(media_strm_path, 'w', encoding='utf-8') as media_strm_file:
             await media_strm_file.write(url_line)
-            remaining_url_count -= 1  # Geri sayımı azalt
-            logging.warning(f"{url_count} / {remaining_url_count} kaldı - Uyarı: '{media_name}' için TMDb verisi bulunamadı. STRM dosyası oluşturuldu: {media_strm_path}")
+            remaining_url_count -= 1  # Decrease countdown
+            logging.warning(f"{url_count} / {remaining_url_count} left - Warning: No TMDb data found for '{media_name}'. Created STRM file: {media_strm_path}")
     else:
-        remaining_url_count -= 1  # Geri sayımı azalt
-        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {media_strm_path}")
+        remaining_url_count -= 1  # Decrease countdown
+        logging.info(f"{url_count} / {remaining_url_count} left - STRM file already exists: {media_strm_path}")
 
 async def process_m3u_file(m3u_file_path, output_folder_path, channels_data):
     async with aiofiles.open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
@@ -628,10 +741,10 @@ async def process_m3u_file(m3u_file_path, output_folder_path, channels_data):
             else:
                 i += 1
 
-# Kullanım:
+# Usage:
 async def main():
     
-    # fetch_iptv_channels çağrısını await ile yapın
+    # call fetch_iptv_channels with await
     channels_data = await fetch_iptv_channels("https://iptv-org.github.io/api/channels.json", your_language_code)
     
     await process_m3u_file(m3u_file_path, output_folder_path, channels_data)

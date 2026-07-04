@@ -17,6 +17,11 @@ movies_folder_path = os.path.join(output_folder_path, 'movies')
 series_folder_path = os.path.join(output_folder_path, 'series')
 porn_folder_path = os.path.join(output_folder_path, 'porn')
 
+# STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
+os.makedirs(movies_folder_path, exist_ok=True)
+os.makedirs(series_folder_path, exist_ok=True)
+os.makedirs(porn_folder_path, exist_ok=True)
+
 # Group-title çeviri sözlüğü
 category_translation = {
     "general": "Genel",
@@ -45,10 +50,10 @@ category_translation = {
 # Suffix pattern
 suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
 
-# STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
-os.makedirs(movies_folder_path, exist_ok=True)
-os.makedirs(series_folder_path, exist_ok=True)
-os.makedirs(porn_folder_path, exist_ok=True)
+# URL'nin "porn" içerip içermediğini kontrol etme fonksiyonu
+def is_porn_url(url):
+    porn_patterns = [r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX']
+    return any(re.search(pattern, url, re.IGNORECASE) for pattern in porn_patterns)
 
 # Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
 def sanitize_filename(filename):
@@ -56,11 +61,6 @@ def sanitize_filename(filename):
     for char in invalid_chars:
         filename = filename.replace(char, '')
     return filename
-
-# URL'nin "porn" içerip içermediğini kontrol etme fonksiyonu
-def is_porn_url(url):
-    porn_patterns = [r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX']
-    return any(re.search(pattern, url, re.IGNORECASE) for pattern in porn_patterns)
 
 # Ad temizleme fonksiyonu (film ve dizi için)
 def clean_name(name, is_tv=False):
@@ -153,9 +153,6 @@ def create_nfo(data, file_path, is_tv=False):
     with open(file_path, 'w', encoding='utf-8') as nfo_file:
         nfo_file.write(nfo_content)
     print(f"NFO dosyası oluşturuldu: {file_path}")
-
-# Suffix pattern
-suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
 
 # M3U dosyasını okuyun ve STRM/NFO dosyalarını oluşturun
 with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:

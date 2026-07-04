@@ -8,14 +8,10 @@ from requests.packages.urllib3.util.retry import Retry
 import requests_cache
 import logging
 
+
+
 # Loglama yapılandırması
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Kullanıcı verileri
-tmdb_api_key = 'YOUR_API_KEY'
-iptvurl = 'YOUR_IPTV_URL'  # Buraya IPTV URL'nizi yazın
-iptvusername = 'YOUR_IPTV_USERNAME'   # Buraya IPTV kullanıcı adınızı yazın
-iptvpassword = 'YOUR_IPTV_PASSWORD'   # Buraya IPTV şifrenizi yazın
 
 # Filtrelenecek ülke kodu
 your_language_code = 'TR'
@@ -74,12 +70,10 @@ def fetch_and_process_channels(api_url):
         logging.error(f"API isteği başarısız oldu: {e}")
         return []
 
-#output_files klasörü oluşturma
-current_working_directory = os.getcwd()
-output_folder_path = os.path.join(current_working_directory, 'output_files')
-os.makedirs(output_folder_path, exist_ok=True)
+# TMDb API anahtarını girin
+tmdb_api_key = 'YOUR_API_KEY'
 
-# Kaynak M3U dosyasını indirme
+# Kaynak M3U dosya yolunu belirleyin
 url = f"{iptvurl}/get.php?username={iptvusername}&password={iptvpassword}&type=m3u"
 m3u_file_path = os.path.join(output_folder_path, 'm3u2strm.m3u')
 try:
@@ -97,18 +91,20 @@ try:
 except RequestException as e:
     print(f"Dosya indirme başarısız. Hata: {e}")
 
+#output_files klasörü oluşturma
+output_folder_path = r'C:\Users\csmbs\Downloads\output_files'
+os.makedirs(output_folder_path, exist_ok=True)
 
 # Log dosyalama
-log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
-file_handler = logging.FileHandler(log_file_path)  # 'app.log' adında bir log dosyası oluşturur
+logger = logging.getLogger()
+file_handler = logging.FileHandler(r'C:\Users\csmbs\Downloads\output_files\m3u2strm.log')  # 'app.log' adında bir log dosyası oluşturur
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v2.3")
-logger.info("downloading m3u file from internet")
+logger.info("m3utostrm v2.4")
+logger.info("library control added")
 
 # Kütüphane listesi
 required_libraries = [

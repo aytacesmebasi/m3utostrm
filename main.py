@@ -1,6 +1,8 @@
 import os
 import re
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import logging
 
 # Loglama yapılandırması
@@ -27,8 +29,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v1.6")
-logger.info("porn parsing improved")
+logger.info("m3utostrm v1.7")
+logger.info("added api error checking")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
@@ -79,6 +81,27 @@ def is_porn_url(url):
     combined_pattern = '|'.join(porn_patterns)
     return re.search(combined_pattern, url, re.IGNORECASE) is not None
 
+def get_with_retries(url, max_retries=3, backoff_factor=1):
+    session = requests.Session()
+    retry = Retry(
+        total=max_retries,
+        read=max_retries,
+        connect=max_retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[500, 502, 503, 504]
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    
+    try:
+        response = session.get(url)
+        response.raise_for_status()  # HTTP hatalarını yakalar
+        return response
+    except requests.RequestException as e:
+        logging.error(f"Bir hata oluştu: {e}")
+        return None
+
 
 # Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
 def sanitize_filename(filename):
@@ -100,7 +123,7 @@ def clean_name(name, is_tv=False):
 def search_tmdb(query, is_tv=False):
     search_type = 'tv' if is_tv else 'movie'
     search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query}&language={your_language_code}"
-    response = requests.get(search_url)
+    response = get_with_retries(search_url)
     if response.status_code == 200:
         results = response.json().get('results', [])
         if results:

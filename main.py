@@ -23,16 +23,16 @@ logging.basicConfig(
     level=logging.INFO,
     encoding='utf-8'
 )
-log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
-file_handler = logging.FileHandler(log_file_path)  # 'app.log' adında bir log dosyası oluşturur
+logger = logging.getLogger()
+log_file_path = os.path.join(output_folder_path, 'm3u2strm.log')
+file_handler = logging.FileHandler(log_file_path, encoding='utf-8')  # 'app.log' adında bir log dosyası oluşturur
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.5")
-logger.info("tv serial episode control removed and api control added")
+logger.info("m3utostrm v3.6")
+logger.info("folder and file paths edited")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -567,10 +567,7 @@ async def process_m3u_file(m3u_file_path, output_folder_path, channels_data):
                 i += 1
 
 # Kullanım:
-
 async def main():
-    m3u_file_path = r'C:\Users\csmbs\Downloads\2024.m3u'
-    output_folder_path = r'C:\Users\csmbs\Downloads\output_files'
     
     # fetch_iptv_channels çağrısını await ile yapın
     channels_data = await fetch_iptv_channels("https://iptv-org.github.io/api/channels.json", your_language_code)

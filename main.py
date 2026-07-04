@@ -1,6 +1,7 @@
 import os
 import re
 import requests
+import logging
 
 # Filtrelenecek ülke kodu
 your_language_code = 'TR'
@@ -55,6 +56,13 @@ def is_porn_url(url):
     porn_patterns = [r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX']
     return any(re.search(pattern, url, re.IGNORECASE) for pattern in porn_patterns)
 
+# Loglama yapılandırması
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Version information
+logger.info("m3utostrm v1.2")
+logger.info("logging started just to create info")
+
 # Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
 def sanitize_filename(filename):
     invalid_chars = '<>:"/\\|?*'
@@ -88,8 +96,9 @@ def search_tmdb(query, is_tv=False):
 
 # NFO dosyası oluşturma fonksiyonu (film ve dizi için)
 def create_nfo(data, file_path, is_tv=False):
-    if is_tv:
-        nfo_content = f"""
+    try:
+        if is_tv:
+            nfo_content = f"""
 <tvshow>
     <title>{data['name']}</title>
     <originaltitle>{data.get('original_name', data['name'])}</originaltitle>
@@ -110,8 +119,8 @@ def create_nfo(data, file_path, is_tv=False):
     <studio>{', '.join([company['name'] for company in data.get('production_companies', [])])}</studio>
 </tvshow>
 """
-    else:
-        nfo_content = f"""
+        else:
+            nfo_content = f"""
 <movie>
     <title>{data['title']}</title>
     <originaltitle>{data['original_title']}</originaltitle>
@@ -150,9 +159,12 @@ def create_nfo(data, file_path, is_tv=False):
 
         nfo_content += "\n</movie>"
 
-    with open(file_path, 'w', encoding='utf-8') as nfo_file:
-        nfo_file.write(nfo_content)
-    print(f"NFO dosyası oluşturuldu: {file_path}")
+        with open(file_path, 'w', encoding='utf-8') as nfo_file:
+            nfo_file.write(nfo_content)
+        logging.info(f"NFO dosyası oluşturuldu: {file_path}")
+    except Exception as e:
+        logging.error(f"Bir hata oluştu: {e}")
+
 
 # M3U dosyasını okuyun ve STRM/NFO dosyalarını oluşturun
 with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:

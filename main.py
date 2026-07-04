@@ -9,7 +9,6 @@ from urllib.parse import quote
 import logging
 import aiohttp
 import asyncio
-from urllib.parse import quote
 import aiofiles
 
 #output_files klasörü oluşturma
@@ -32,8 +31,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.1")
-logger.info("cache file usage removed")
+logger.info("m3utostrm v3.2")
+logger.info("minor changes")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'

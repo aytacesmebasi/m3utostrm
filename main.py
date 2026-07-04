@@ -2,6 +2,9 @@ import os
 import re
 import requests
 
+# Filtrelenecek ülke kodu
+your_language_code = 'TR'
+
 # TMDb API anahtarını girin
 tmdb_api_key = 'YOUR_API_KEY'
 
@@ -13,6 +16,34 @@ m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
 movies_folder_path = os.path.join(output_folder_path, 'movies')
 series_folder_path = os.path.join(output_folder_path, 'series')
 porn_folder_path = os.path.join(output_folder_path, 'porn')
+
+# Group-title çeviri sözlüğü
+category_translation = {
+    "general": "Genel",
+    "business": "İş",
+    "children": "Çocuk",
+    "classic": "Klasik",
+    "comedy": "Komedi",
+    "documentary": "Belgesel",
+    "education": "Eğitim",
+    "entertainment": "Eğlence",
+    "family": "Aile",
+    "game": "Oyun",
+    "legislative": "Mevzuat",
+    "lifestyle": "Yaşam Tarzı",
+    "movies": "Filmler",
+    "music": "Müzik",
+    "news": "Haberler",
+    "religious": "Dini",
+    "science": "Bilim",
+    "shop": "Alışveriş",
+    "sports": "Spor",
+    "travel": "Seyahat",
+    "weather": "Hava Durumu"
+}
+
+# Suffix pattern
+suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 os.makedirs(movies_folder_path, exist_ok=True)
@@ -43,7 +74,7 @@ def clean_name(name, is_tv=False):
 # TMDb arama fonksiyonu
 def search_tmdb(query, is_tv=False):
     search_type = 'tv' if is_tv else 'movie'
-    search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query}&language=tr"
+    search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query}&language={your_language_code}"
     response = requests.get(search_url)
     if response.status_code == 200:
         results = response.json().get('results', [])
@@ -126,31 +157,6 @@ def create_nfo(data, file_path, is_tv=False):
 # Suffix pattern
 suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
 
-# Group-title çeviri sözlüğü
-category_translation = {
-    "general": "Genel",
-    "business": "İş",
-    "children": "Çocuk",
-    "classic": "Klasik",
-    "comedy": "Komedi",
-    "documentary": "Belgesel",
-    "education": "Eğitim",
-    "entertainment": "Eğlence",
-    "family": "Aile",
-    "game": "Oyun",
-    "legislative": "Mevzuat",
-    "lifestyle": "Yaşam Tarzı",
-    "movies": "Filmler",
-    "music": "Müzik",
-    "news": "Haberler",
-    "religious": "Dini",
-    "science": "Bilim",
-    "shop": "Alışveriş",
-    "sports": "Spor",
-    "travel": "Seyahat",
-    "weather": "Hava Durumu"
-}
-
 # M3U dosyasını okuyun ve STRM/NFO dosyalarını oluşturun
 with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
     lines = m3u_file.readlines()
@@ -162,7 +168,7 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
         response = requests.get("https://iptv-org.github.io/api/channels.json")
         if response.status_code == 200:
             channels_data = response.json()
-            channels_data = [channel for channel in channels_data if channel.get("country") == "TR"]
+            channels_data = [channel for channel in channels_data if channel.get('country') == your_language_code]
         else:
             print(f"Uyarı: IPTV-Org API isteği başarısız oldu. Durum Kodu: {response.status_code}")
             channels_data = []
@@ -184,7 +190,8 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
 
                         # Köşeli parantez içindeki değerleri 'bracketsin' olarak ayır
                         bracketsin_match = re.search(r'\[(.*?)\]', media_name)
-                        bracketsin = bracketsin_match.group(1) if bracketsin_match else ''
+                        bracketsin = bracketsin_match.group(1).replace(' ', '') if bracketsin_match else ''
+                        bracketsin += ' Yayın'
                         
                         # IPTV-Org API'den kanal bilgilerini kontrol et
                         channel_info = next((channel for channel in channels_data if channel["name"].lower() == cleaned_media_name.lower()), None)

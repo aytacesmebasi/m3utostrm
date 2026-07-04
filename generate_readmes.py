@@ -292,7 +292,25 @@ translations = {
     }
 }
 
+badge_info = {
+    'en': ('Lang', 'English', 'blue'),
+    'tr': ('Dil', 'Türkçe', 'red'),
+    'de': ('Sprache', 'Deutsch', 'yellow'),
+    'es': ('Idioma', 'Español', 'orange'),
+    'fr': ('Langue', 'Français', 'blue'),
+    'it': ('Lingua', 'Italiano', 'green'),
+    'ru': ('Язык', 'Русский', 'lightgrey'),
+    'uk': ('Мова', 'Українська', 'yellow'),
+    'ar': ('لغة', 'العربية', 'green'),
+    'ja': ('言語', '日本語', 'red'),
+    'ko': ('언어', '한국어', 'blue'),
+    'zh_CN': ('语言', '简体中文', 'red'),
+    'zh_TW': ('語言', '繁體中文', 'red')
+}
+
 os.makedirs('readme', exist_ok=True)
+
+import urllib.parse
 
 def generate_header(current_lang_code, is_root=False):
     links = []
@@ -303,12 +321,14 @@ def generate_header(current_lang_code, is_root=False):
         else:
             target = f"readme/README.{code}.md" if is_root else f"README.{code}.md"
         
-        if code == current_lang_code:
-            links.append(f"**[{name}]({target})**")
-        else:
-            links.append(f"[{name}]({target})")
+        label, badge_name, color = badge_info[code]
+        encoded_badge = f"{urllib.parse.quote(label)}-{urllib.parse.quote(badge_name)}-{color}"
+        badge_url = f"https://img.shields.io/badge/{encoded_badge}"
+        
+        links.append(f"[![{name}]({badge_url})]({target})")
     
-    return " | ".join(links) + "\n\n"
+    header_content = "\n".join(links)
+    return f'<div align="center">\n\n{header_content}\n\n</div>\n\n'
 
 template = """{header}<h1 align="center">M3U to STRM Converter</h1>
 

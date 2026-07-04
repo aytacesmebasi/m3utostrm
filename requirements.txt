@@ -1,0 +1,5 @@
+PyQt6
+qfluentwidgets
+aiohttp
+aiofiles
+requests

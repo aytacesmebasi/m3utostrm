@@ -1,0 +1,60 @@
+def _download_image(url, destination_path, callback=None):
+    """
+    Downloads an image from a URL to a destination path.
+
+    Args:
+        url (str): The URL of the image to download.
+        destination_path (str): The local path to save the image.
+        callback (function, optional): A function to report status.
+    """
+    if not url:
+        return
+    if os.path.exists(destination_path):
+        if callback:
+            callback(_("Already exists: {filename}").format(filename=os.path.basename(destination_path)))
+        return
+    try:
+        if callback:
+            callback(_("Downloading: {filename}").format(filename=os.path.basename(destination_path)))
+        resp = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
+        if resp.status_code == 200:
+            with open(destination_path, "wb") as f:
+                f.write(resp.content)
+    except Exception:
+        pass
+
+def _fetch_fanart_data(item_id, folder, file_name, settings_dict, media_type="movie", tvdb_id=None, callback=None):
+    """
+    Fetches extra artwork (clearart, logos, etc.) from Fanart.tv.
+
+    Args:
+        item_id (str): The TMDB ID of the item.
+        folder (str): The folder to save the artwork in.
+        file_name (str): The base name for the artwork files.
+        settings_dict (dict): The application settings dictionary.
+        media_type (str, optional): 'movie' or 'tv'.
+        tvdb_id (str, optional): The TVDB ID, required for series.
+        callback (function, optional): A function to report status.
+    """
+    fanart_api_key = settings_dict.get("fanart_api_key", "").strip()
+    if not fanart_api_key:
+        return
+    try:
+        if callback:
+            callback(_("Searching for extra artwork on Fanart.tv..."))
+        if media_type == "movie":
+            url = f"https://webservice.fanart.tv/v3/movies/{item_id}?api_key={fanart_api_key}"
+            prefix = file_name + "-"
+        else:
+            if not tvdb_id:
+                return
+            url = f"https://webservice.fanart.tv/v3/tv/{tvdb_id}?api_key={fanart_api_key}"
+            prefix = ""
+
+        resp = requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            return
+        data = resp.json()
+
+        def get_best_image(img_list):
+            if not img_list: return None

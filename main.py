@@ -31,8 +31,8 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.7")
-logger.info("added url count and remaining url count to be processed")
+logger.info("m3utostrm v3.8")
+logger.info("if there is a strm or nfo file, it does not process")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -487,10 +487,16 @@ async def create_porn_strm(media_name, url_line):
     global remaining_url_count  # Global değişkeni kullan
     porn_strm_path = os.path.join(porn_folder_path, f"{sanitize_filename(media_name)}.strm")
     
-    async with aiofiles.open(porn_strm_path, 'w', encoding='utf-8') as porn_strm_file:
-        await porn_strm_file.write(url_line)
+    # STRM dosyasının varlığını kontrol et
+    if not os.path.exists(porn_strm_path):
+        async with aiofiles.open(porn_strm_path, 'w', encoding='utf-8') as porn_strm_file:
+            await porn_strm_file.write(url_line)
+            remaining_url_count -= 1  # Geri sayımı azalt
+            logging.info(f"{url_count} / {remaining_url_count} kaldı - Porno için STRM dosyası oluşturuldu: {porn_strm_path}")
+    else:
         remaining_url_count -= 1  # Geri sayımı azalt
-        logging.info(f"{url_count} / {remaining_url_count} kaldı - Porno için STRM dosyası oluşturuldu: {porn_strm_path}")
+        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {porn_strm_path}")
+
 
 async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
     global url_count  # Global değişkeni kullan
@@ -509,37 +515,48 @@ async def create_tv_show_files(show_name, tmdb_data, url_line, media_name):
     episode_strm_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.strm")
     episode_nfo_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.nfo")
     
-    # STRM dosyasını oluştur
-    async with aiofiles.open(episode_strm_path, 'w', encoding='utf-8') as episode_strm_file:
-        await episode_strm_file.write(url_line)
+    # STRM dosyasının varlığını kontrol et, yoksa oluştur
+    if not os.path.exists(episode_strm_path):
+        async with aiofiles.open(episode_strm_path, 'w', encoding='utf-8') as episode_strm_file:
+            await episode_strm_file.write(url_line)
+            remaining_url_count -= 1  # Geri sayımı azalt
+            logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {episode_strm_path}")
+    else:
         remaining_url_count -= 1  # Geri sayımı azalt
-        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {episode_strm_path}")
+        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {episode_strm_path}")
     
-    async with aiohttp.ClientSession() as session:
-        # Dizi detaylarını TMDb API'den al ve NFO dosyalarını oluştur
-        show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
-        show_details_response = await fetch_data(session, show_details_url)
-        if show_details_response:
-            await create_nfo(show_details_response, series_nfo_path, is_tv=True)
-            
-            season_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}/season/{season}?api_key={tmdb_api_key}&language=tr"
-            season_details_response = await fetch_data(session, season_details_url)
-            if season_details_response:
-                await create_nfo(season_details_response, season_nfo_path, is_tv=True)
+    # NFO dosyalarının varlığını kontrol et, yoksa oluştur
+    if not os.path.exists(series_nfo_path) or not os.path.exists(season_nfo_path) or not os.path.exists(episode_nfo_path):
+        async with aiohttp.ClientSession() as session:
+            # Dizi detaylarını TMDb API'den al ve NFO dosyalarını oluştur
+            show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
+            show_details_response = await fetch_data(session, show_details_url)
+            if show_details_response:
+                if not os.path.exists(series_nfo_path):
+                    await create_nfo(show_details_response, series_nfo_path, is_tv=True)
                 
-                episode_details = next((ep for ep in season_details_response.get('episodes', []) if ep['episode_number'] == int(episode)), None)
-                if episode_details:
-                    await create_nfo(episode_details, episode_nfo_path, is_tv=True)
+                season_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}/season/{season}?api_key={tmdb_api_key}&language=tr"
+                season_details_response = await fetch_data(session, season_details_url)
+                if season_details_response:
+                    if not os.path.exists(season_nfo_path):
+                        await create_nfo(season_details_response, season_nfo_path, is_tv=True)
+                    
+                    episode_details = next((ep for ep in season_details_response.get('episodes', []) if ep['episode_number'] == int(episode)), None)
+                    if episode_details and not os.path.exists(episode_nfo_path):
+                        await create_nfo(episode_details, episode_nfo_path, is_tv=True)
+                    else:
+                        logging.warning(f"Uyarı: '{media_name}' için bölüm verisi bulunamadı veya NFO dosyası zaten mevcut.")
                 else:
-                    logging.warning(f"Uyarı: '{media_name}' için bölüm verisi bulunamadı.")
+                    logging.error(f"Uyarı: Sezon detayları için TMDb API isteği başarısız oldu.")
             else:
-                logging.error(f"Uyarı: Sezon detayları için TMDb API isteği başarısız oldu.")
-        else:
-            logging.error(f"Uyarı: Dizi detayları için TMDb API isteği başarısız oldu.")
+                logging.error(f"Uyarı: Dizi detayları için TMDb API isteği başarısız oldu.")
+    else:
+        logging.info("Tüm NFO dosyaları zaten mevcut.")
 
 async def create_movie_files(movie_name, tmdb_data, url_line):
     global url_count  # Global değişkeni kullan
     global remaining_url_count  # Global değişkeni kullan
+    
     # Film için klasör oluştur
     year = tmdb_data.get('release_date', '')[:4]
     movie_folder = os.path.join(movies_folder_path, f"{movie_name} ({year})")
@@ -549,34 +566,48 @@ async def create_movie_files(movie_name, tmdb_data, url_line):
     movie_nfo_path = os.path.join(movie_folder, f"{movie_name} ({year}).nfo")
     movie_strm_path = os.path.join(movie_folder, f"{movie_name} ({year}).strm")
     
-    # STRM dosyasını oluştur
-    async with aiofiles.open(movie_strm_path, 'w', encoding='utf-8') as movie_strm_file:
-        await movie_strm_file.write(url_line)
+    # STRM dosyasının varlığını kontrol et ve yoksa oluştur
+    if not os.path.exists(movie_strm_path):
+        async with aiofiles.open(movie_strm_path, 'w', encoding='utf-8') as movie_strm_file:
+            await movie_strm_file.write(url_line)
+            remaining_url_count -= 1  # Geri sayımı azalt
+            logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {movie_strm_path}")
+    else:
         remaining_url_count -= 1  # Geri sayımı azalt
-        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası oluşturuldu: {movie_strm_path}")
+        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {movie_strm_path}")
     
-    async with aiohttp.ClientSession() as session:
-        # Film detaylarını TMDb API'den al ve NFO dosyasını oluştur
-        movie_id = tmdb_data['id']
-        movie_details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
-        movie_details_response = await fetch_data(session, movie_details_url)
-        
-        if movie_details_response:
-            await create_nfo(movie_details_response, movie_nfo_path, is_tv=False)
-        else:
-            logging.error(f"Uyarı: Film detayları için TMDb API isteği başarısız oldu.")
+    # NFO dosyasının varlığını kontrol et ve yoksa oluştur
+    if not os.path.exists(movie_nfo_path):
+        async with aiohttp.ClientSession() as session:
+            movie_id = tmdb_data['id']
+            movie_details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
+            movie_details_response = await fetch_data(session, movie_details_url)
+            
+            if movie_details_response:
+                await create_nfo(movie_details_response, movie_nfo_path, is_tv=False)
+            else:
+                logging.error(f"Uyarı: Film detayları için TMDb API isteği başarısız oldu.")
 
 async def create_default_strm(media_name, url_line):
     global url_count  # Global değişkeni kullan
     global remaining_url_count  # Global değişkeni kullan
+    
+    # Medya için klasör oluştur
     media_folder = os.path.join(movies_folder_path, sanitize_filename(media_name))
     os.makedirs(media_folder, exist_ok=True)
+    
+    # STRM dosyasının yolunu tanımla
     media_strm_path = os.path.join(media_folder, f"{sanitize_filename(media_name)}.strm")
     
-    async with aiofiles.open(media_strm_path, 'w', encoding='utf-8') as media_strm_file:
-        await media_strm_file.write(url_line)
+    # STRM dosyasının varlığını kontrol et ve yoksa oluştur
+    if not os.path.exists(media_strm_path):
+        async with aiofiles.open(media_strm_path, 'w', encoding='utf-8') as media_strm_file:
+            await media_strm_file.write(url_line)
+            remaining_url_count -= 1  # Geri sayımı azalt
+            logging.warning(f"{url_count} / {remaining_url_count} kaldı - Uyarı: '{media_name}' için TMDb verisi bulunamadı. STRM dosyası oluşturuldu: {media_strm_path}")
+    else:
         remaining_url_count -= 1  # Geri sayımı azalt
-        logging.warning(f"{url_count} / {remaining_url_count} kaldı - Uyarı: '{media_name}' için TMDb verisi bulunamadı. STRM dosyası oluşturuldu: {media_strm_path}")
+        logging.info(f"{url_count} / {remaining_url_count} kaldı - STRM dosyası zaten mevcut: {media_strm_path}")
 
 async def process_m3u_file(m3u_file_path, output_folder_path, channels_data):
     async with aiofiles.open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:

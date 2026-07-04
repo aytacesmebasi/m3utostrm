@@ -3,6 +3,7 @@ import re
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import requests_cache
 import logging
 
 # Loglama yapılandırması
@@ -29,8 +30,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v1.7")
-logger.info("added api error checking")
+logger.info("m3utostrm v1.8")
+logger.info("cache file creation started")
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
@@ -102,6 +103,11 @@ def get_with_retries(url, max_retries=3, backoff_factor=1):
         logging.error(f"Bir hata oluştu: {e}")
         return None
 
+# Önbelleği başlat (cache dosyası 'api_cache' olarak adlandırılır ve 1 saat süreyle geçerli olur)
+cache_path = 'output_files/api_cache'
+expire_after = 3600
+requests_cache.install_cache(cache_path, expire_after=expire_after)
+logging.info(f"Ön bellek dosyası şu süre için oluşturuldu: {expire_after} saniye.")
 
 # Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
 def sanitize_filename(filename):
@@ -120,19 +126,27 @@ def clean_name(name, is_tv=False):
     return sanitize_filename(name.strip())
 
 # TMDb arama fonksiyonu
+def fetch_data(url):
+    # Önbellekten veya doğrudan URL'den verileri çek
+    response = get_with_retries(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
+
 def search_tmdb(query, is_tv=False):
     search_type = 'tv' if is_tv else 'movie'
     search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query}&language={your_language_code}"
-    response = get_with_retries(search_url)
-    if response.status_code == 200:
-        results = response.json().get('results', [])
+    data = fetch_data(search_url) 
+    if data:
+        results = data.get('results', [])
         if results:
             return results[0]  # İlk sonuç
         else:
             logging.error(f"Uyarı: '{query}' için TMDb'de sonuç bulunamadı.")
     else:
         logging.error(f"Uyarı: TMDb API isteği başarısız oldu. Durum Kodu: {response.status_code}")
-    return None
+    return None   
 
 # NFO dosyası oluşturma fonksiyonu (film ve dizi için)
 def create_nfo(data, file_path, is_tv=False):
@@ -216,11 +230,12 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
     # updated_channels.m3u dosyasını oluşturun veya açın
     updated_channels_file_path = os.path.join(output_folder_path, 'updated_channels.m3u')
     with open(updated_channels_file_path, 'w', encoding='utf-8') as updated_channels_file:
+        
         # iptv-org API'den Türkiye kanal bilgilerini çek
-        response = requests.get("https://iptv-org.github.io/api/channels.json")
-        if response.status_code == 200:
-            channels_data = response.json()
-            channels_data = [channel for channel in channels_data if channel.get('country') == your_language_code]
+        response = fetch_data("https://iptv-org.github.io/api/channels.json")
+        if response:
+            channels_data = [channel for channel in response if channel.get('country') == your_language_code]
+
         else:
             logging.error(f"Uyarı: IPTV-Org API isteği başarısız oldu. Durum Kodu: {response.status_code}")
             channels_data = []

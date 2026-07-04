@@ -6,7 +6,6 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib.parse import quote
-import requests_cache
 import logging
 import aiohttp
 import asyncio
@@ -33,8 +32,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.0")
-logger.info("asynchronous functions developed")
+logger.info("m3utostrm v3.1")
+logger.info("cache file usage removed")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -102,8 +101,7 @@ async def fetch_and_process_channels(api_url):
 
 # Kütüphane listesi
 required_libraries = [
-    "requests",
-    "requests-cache"
+    "requests"
 ]
 
 def install(package):
@@ -176,12 +174,6 @@ async def get_with_retries(url, retries=3, backoff_factor=0.3, status_forcelist=
             else:
                 logging.error(f"Failed to fetch {url} after {retries} attempts.")
                 return None
-
-# Önbelleği başlat (cache dosyası 'api_cache' olarak adlandırılır ve 1 saat süreyle geçerli olur)
-cache_path = 'output_files/api_cache'
-expire_after = 3600
-requests_cache.install_cache(cache_path, expire_after=expire_after)
-logging.info(f"Ön bellek dosyası şu süre için oluşturuldu: {expire_after} saniye.")
 
 # Suffix pattern
 suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)

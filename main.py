@@ -12,38 +12,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Filtrelenecek ülke kodu
 your_language_code = 'TR'
 
-# TMDb API anahtarını girin
-tmdb_api_key = 'YOUR_API_KEY'
-
-# KaynakM3U dosya yolunu belirleyin
-current_working_directory = os.getcwd()
-output_folder_path = os.path.join(current_working_directory, 'output_files')
-os.makedirs(output_folder_path, exist_ok=True)
-m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
-
-# Log dosyalama
-log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
-file_handler = logging.FileHandler(log_file_path)  # 'app.log' adında bir log dosyası oluşturur
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger = logging.getLogger()
-logger.addHandler(file_handler)
-
-# Version information
-logger.info("m3utostrm v2.0")
-logger.info("nfo file content improved")
-
-# STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
-movies_folder_path = os.path.join(output_folder_path, 'movies')
-os.makedirs(movies_folder_path, exist_ok=True)
-logging.info(f"Movies Klasörü oluşturuldu: {movies_folder_path}")
-series_folder_path = os.path.join(output_folder_path, 'series')
-os.makedirs(series_folder_path, exist_ok=True)
-logging.info(f"Series Klasörü oluşturuldu: {series_folder_path}")
-porn_folder_path = os.path.join(output_folder_path, 'porn')
-os.makedirs(porn_folder_path, exist_ok=True)
-logging.info(f"Porn Klasörü oluşturuldu: {porn_folder_path}")
-
 # Group-title çeviri sözlüğü
 category_translation = {
     "general": "Genel",
@@ -68,6 +36,42 @@ category_translation = {
     "travel": "Seyahat",
     "weather": "Hava Durumu"
 }
+
+# TMDb API anahtarını girin
+tmdb_api_key = 'YOUR_API_KEY'
+
+# KaynakM3U dosya yolunu belirleyin
+m3u_file_path = r'C:\Users\csmbs\Downloads\2024.m3u'
+
+# KaynakM3U dosya yolunu belirleyin
+current_working_directory = os.getcwd()
+output_folder_path = os.path.join(current_working_directory, 'output_files')
+os.makedirs(output_folder_path, exist_ok=True)
+m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
+
+# Log dosyalama
+log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
+file_handler = logging.FileHandler(log_file_path)  # 'app.log' adında bir log dosyası oluşturur
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger = logging.getLogger()
+logger.addHandler(file_handler)
+
+# Version information
+logger.info("m3utostrm v2.1")
+logger.info("the requested URL was not found error has been fixed")
+
+
+# STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
+movies_folder_path = os.path.join(output_folder_path, 'movies')
+os.makedirs(movies_folder_path, exist_ok=True)
+logging.info(f"Movies Klasörü oluşturuldu: {movies_folder_path}")
+series_folder_path = os.path.join(output_folder_path, 'series')
+os.makedirs(series_folder_path, exist_ok=True)
+logging.info(f"Series Klasörü oluşturuldu: {series_folder_path}")
+porn_folder_path = os.path.join(output_folder_path, 'porn')
+os.makedirs(porn_folder_path, exist_ok=True)
+logging.info(f"Porn Klasörü oluşturuldu: {porn_folder_path}")
 
 # Suffix pattern
 suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
@@ -128,9 +132,8 @@ def clean_name(name, is_tv=False):
 
 # TMDb arama fonksiyonu
 def fetch_data(url):
-    # Önbellekten veya doğrudan URL'den verileri çek
     response = get_with_retries(url)
-    if response.status_code == 200:
+    if response and response.status_code == 200:
         return response.json()
     else:
         return None
@@ -146,8 +149,8 @@ def search_tmdb(query, is_tv=False):
         else:
             logging.error(f"Uyarı: '{query}' için TMDb'de sonuç bulunamadı.")
     else:
-        logging.error(f"Uyarı: TMDb API isteği başarısız oldu. Durum Kodu: {response.status_code}")
-    return None   
+        logging.error(f"Uyarı: TMDb API isteği başarısız oldu.")
+    return None
 
 # NFO dosyası oluşturma fonksiyonu (film ve dizi için)
 def create_nfo(data, file_path, is_tv=False):
@@ -296,9 +299,8 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
         response = fetch_data("https://iptv-org.github.io/api/channels.json")
         if response:
             channels_data = [channel for channel in response if channel.get('country') == your_language_code]
-
         else:
-            logging.error(f"Uyarı: IPTV-Org API isteği başarısız oldu. Durum Kodu: {response.status_code}")
+            logging.error("Uyarı: IPTV-Org API isteği başarısız oldu.")
             channels_data = []
 
         i = 0
@@ -377,14 +379,14 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                                         logging.info(f"STRM dosyası oluşturuldu: {episode_strm_path}")
                                     
                                     show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
-                                    show_details_response = requests.get(show_details_url)
-                                    if show_details_response.status_code == 200:
+                                    show_details_response = get_with_retries(show_details_url)
+                                    if show_details_response and show_details_response.status_code == 200:
                                         show_details = show_details_response.json()
                                         create_nfo(show_details, series_nfo_path, is_tv=True)
                                         
                                         season_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}/season/{season}?api_key={tmdb_api_key}&language=tr"
-                                        season_details_response = requests.get(season_details_url)
-                                        if season_details_response.status_code == 200:
+                                        season_details_response = get_with_retries(season_details_url)
+                                        if season_details_response and season_details_response.status_code == 200:
                                             season_details = season_details_response.json()
                                             create_nfo(season_details, season_nfo_path, is_tv=True)
                                             
@@ -393,8 +395,10 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                                                 create_nfo(episode_details, episode_nfo_path, is_tv=True)
                                             else:
                                                 logging.error(f"Uyarı: '{media_name}' için bölüm verisi bulunamadı.")
+                                        else:
+                                            logging.error(f"Uyarı: Sezon detayları için TMDb API isteği başarısız oldu.")
                                     else:
-                                        logging.error(f"Uyarı: TMDb API isteği başarısız oldu. Durum Kodu: {show_details_response.status_code}")
+                                        logging.error(f"Uyarı: Dizi detayları için TMDb API isteği başarısız oldu.")
                                 else:
                                     # Film
                                     movie_folder = os.path.join(movies_folder_path, cleaned_media_name)
@@ -408,12 +412,12 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                                     
                                     movie_id = tmdb_data['id']
                                     movie_details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
-                                    movie_details_response = requests.get(movie_details_url)
-                                    if movie_details_response.status_code == 200:
+                                    movie_details_response = get_with_retries(movie_details_url)
+                                    if movie_details_response and movie_details_response.status_code == 200:
                                         movie_details = movie_details_response.json()
                                         create_nfo(movie_details, movie_nfo_path, is_tv=False)
                                     else:
-                                        logging.error(f"Uyarı: TMDb API isteği başarısız oldu. Durum Kodu: {movie_details_response.status_code}")
+                                        logging.error(f"Uyarı: Film detayları için TMDb API isteği başarısız oldu.")
                             
                             else:
                                 logging.error(f"Uyarı: '{media_name}' için TMDb verisi bulunamadı.")

@@ -31,8 +31,8 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v3.3")
-logger.info("added tv series episode control")
+logger.info("m3utostrm v3.4")
+logger.info("tv series episode control improved")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -204,14 +204,27 @@ def clean_name(name, is_tv=False):
     return sanitize_filename(name.strip())
 
 # TMDb arama fonksiyonu
+class APIRequestError(Exception):
+    """API istekleri için özel hata sınıfı."""
+    def __init__(self, message, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
+
 async def fetch_data(session, url):
     try:
         async with session.get(url) as response:
             response.raise_for_status()
             return await response.json()
+    except aiohttp.ClientResponseError as e:
+        if e.status == 404:
+            logging.warning(f"API isteği başarısız oldu: 404 Not Found - {url}")
+            return None  # 404 hatasında None döndür
+        else:
+            logging.error(f"API isteği başarısız oldu: {e} - Status Code: {e.status}")
+            raise APIRequestError(f"API isteği başarısız oldu: {e.message}", status_code=e.status)
     except aiohttp.ClientError as e:
         logging.error(f"API isteği başarısız oldu: {e}")
-        return None
+        raise APIRequestError(f"API isteği başarısız oldu: {e}")
 
 async def search_tmdb(query, is_tv=False):
     search_type = 'tv' if is_tv else 'movie'
@@ -219,16 +232,16 @@ async def search_tmdb(query, is_tv=False):
     search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query_encoded}&language={your_language_code}"
     
     async with aiohttp.ClientSession() as session:
-        data = await fetch_data(session, search_url)
+        try:
+            data = await fetch_data(session, search_url)
+            results = data.get('results', [])
+            if results:
+                return results[0]
+            else:
+                logging.warning(f"Uyarı: '{query}' için TMDb'de sonuç bulunamadı.")
+        except APIRequestError as e:
+            logging.error(f"TMDb API isteği başarısız oldu: {e}")
     
-    if data:
-        results = data.get('results', [])
-        if results:
-            return results[0]
-        else:
-            logging.warning(f"Uyarı: '{query}' için TMDb'de sonuç bulunamadı.")
-    else:
-        logging.error(f"Uyarı: TMDb API isteği başarısız oldu.")
     return None
 
 async def validate_season_and_episode(tmdb_id, season, episode):

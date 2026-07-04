@@ -2,22 +2,25 @@ import os
 import re
 import requests
 
-# TMDb API anahtarını girin
+# TMDb API anahtarını ve dil kodunu girin
 tmdb_api_key = 'YOUR_API_KEY'
+your_country_code = 'tr'  # Burada dil kodunu değiştirebilirsiniz
 
 # M3U dosya yolunu belirleyin
 current_working_directory = os.getcwd()
 output_folder_path = os.path.join(current_working_directory, 'output_files')
 os.makedirs(output_folder_path, exist_ok=True)
-updated_channels_m3u_path = os.path.join(output_folder_path, 'updated_channels.m3u')
+m3u_file_path = os.path.join(output_folder_path, 'tobeprocess.m3u')
 movies_folder_path = os.path.join(output_folder_path, 'movies')
 series_folder_path = os.path.join(output_folder_path, 'series')
 porn_folder_path = os.path.join(output_folder_path, 'porn')
+updated_channels_m3u_path = os.path.join(output_folder_path, 'updated_channels.m3u')
 
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 os.makedirs(movies_folder_path, exist_ok=True)
 os.makedirs(series_folder_path, exist_ok=True)
 os.makedirs(porn_folder_path, exist_ok=True)
+os.makedirs(os.path.dirname(updated_channels_m3u_path), exist_ok=True)
 
 # Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
 def sanitize_filename(filename):
@@ -29,7 +32,7 @@ def sanitize_filename(filename):
 # TMDb arama fonksiyonu
 def search_tmdb(query, is_tv=False):
     search_type = 'tv' if is_tv else 'movie'
-    search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query}&language=tr"
+    search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query}&language={your_country_code}"
     response = requests.get(search_url)
     if response.status_code == 200:
         results = response.json().get('results', [])
@@ -127,101 +130,57 @@ def create_nfo(data, file_path, is_tv=False):
 with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
     lines = m3u_file.readlines()
 
-    # updated_channels.m3u dosyasını oluşturun veya açın
-    updated_channels_file_path = os.path.join(output_folder_path, 'updated_channels.m3u')
-    with open(updated_channels_file_path, 'w', encoding='utf-8') as updated_channels_file:
-
+    with open(updated_channels_m3u_path, 'w', encoding='utf-8') as updated_m3u_file:
         i = 0
         while i < len(lines):
             extinf_line = lines[i].strip()
-
+            
             if extinf_line.startswith('#EXTINF:'):
                 if i + 1 < len(lines):
                     url_line = lines[i + 1].strip()
                     media_name = extinf_line.split(',', 1)[1].strip()
                     
-                    # URL'nin ".ts" ile bitip bitmediğini kontrol et
+                    # URL'nin '.ts' ile bitip bitmediğini kontrol et
                     if url_line.lower().endswith('.ts'):
-                        # ".ts" ile biten URL'ler için updated_channels.m3u dosyasına yazın
-                        updated_channels_file.write(f"{extinf_line}\n{url_line}\n")
+                        # '.ts' ile biten URL'leri updated_channels.m3u dosyasına ekle
+                        updated_m3u_file.write(f"{extinf_line}\n{url_line}\n")
                         print(f"URL '.ts' ile bitiyor ve updated_channels.m3u dosyasına eklendi: {url_line}")
                     else:
-                        # Porn URL kontrolü
+                        # Diğer URL'ler için mevcut işlemleri yap
                         if is_porn_url(media_name):
-                            porn_strm_path = os.path.join(porn_folder_path, f"{sanitize_filename(media_name)}.strm")
+                            # Porn içerikli URL'ler için
+                            porn_strm_path = os.path.join(porn_folder_path, f"{sanitize_filename(clean_name(media_name))}.strm")
+                            os.makedirs(os.path.dirname(porn_strm_path), exist_ok=True)
                             with open(porn_strm_path, 'w', encoding='utf-8') as porn_strm_file:
                                 porn_strm_file.write(url_line)
-                            print(f"STRM dosyası oluşturuldu: {porn_strm_path}")
+                            print(f"Porn STRM dosyası oluşturuldu: {porn_strm_path}")
                         else:
                             is_tv = 'S' in media_name and 'E' in media_name
                             cleaned_media_name = clean_name(media_name, is_tv=is_tv)
-                            tmdb_data = search_tmdb(cleaned_media_name, is_tv=is_tv)
                             
-                            if tmdb_data:
-                                if is_tv:
-                                    # Dizi
-                                    show_name = cleaned_media_name
-                                    year = tmdb_data.get('first_air_date', '')[:4]
-                                    season_episode_match = re.search(r'\s*S(\d{2})\s*E(\d{2})', media_name)
-                                    season = season_episode_match.group(1) if season_episode_match else '01'
-                                    episode = season_episode_match.group(2) if season_episode_match else '01'
-                                    
-                                    show_folder = os.path.join(series_folder_path, f"{show_name} ({year})")
-                                    season_folder = os.path.join(show_folder, f"Season {int(season)}")
-                                    os.makedirs(season_folder, exist_ok=True)
-                                    
-                                    series_nfo_path = os.path.join(show_folder, f"{show_name} ({year}).nfo")
-                                    season_nfo_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}.nfo")
-                                    episode_strm_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.strm")
-                                    episode_nfo_path = os.path.join(season_folder, f"{show_name} ({year}) S{season}E{episode}.nfo")
-                                    
-                                    with open(episode_strm_path, 'w', encoding='utf-8') as episode_strm_file:
-                                        episode_strm_file.write(url_line)
-                                    
-                                    show_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
-                                    show_details_response = requests.get(show_details_url)
-                                    if show_details_response.status_code == 200:
-                                        show_details = show_details_response.json()
-                                        create_nfo(show_details, series_nfo_path, is_tv=True)
-                                        
-                                        season_details_url = f"https://api.themoviedb.org/3/tv/{tmdb_data['id']}/season/{season}?api_key={tmdb_api_key}&language=tr"
-                                        season_details_response = requests.get(season_details_url)
-                                        if season_details_response.status_code == 200:
-                                            season_details = season_details_response.json()
-                                            create_nfo(season_details, season_nfo_path, is_tv=True)
-                                            
-                                            episode_details = next((ep for ep in season_details['episodes'] if ep['episode_number'] == int(episode)), None)
-                                            if episode_details:
-                                                create_nfo(episode_details, episode_nfo_path, is_tv=True)
-                                            else:
-                                                print(f"Uyarı: '{media_name}' için bölüm verisi bulunamadı.")
-                                    else:
-                                        print(f"Uyarı: TMDb API isteği başarısız oldu. Durum Kodu: {show_details_response.status_code}")
-                                else:
-                                    # Film
-                                    movie_folder = os.path.join(movies_folder_path, cleaned_media_name)
-                                    os.makedirs(movie_folder, exist_ok=True)
-                                    movie_strm_path = os.path.join(movie_folder, f"{cleaned_media_name}.strm")
-                                    movie_nfo_path = os.path.join(movie_folder, f"{cleaned_media_name}.nfo")
-                                    
-                                    with open(movie_strm_path, 'w', encoding='utf-8') as movie_strm_file:
-                                        movie_strm_file.write(url_line)
-                                    
-                                    movie_id = tmdb_data['id']
-                                    movie_details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
-                                    movie_details_response = requests.get(movie_details_url)
-                                    if movie_details_response.status_code == 200:
-                                        movie_details = movie_details_response.json()
-                                        create_nfo(movie_details, movie_nfo_path, is_tv=False)
-                                    else:
-                                        print(f"Uyarı: TMDb API isteği başarısız oldu. Durum Kodu: {movie_details_response.status_code}")
-                            
+                            if is_tv:
+                                # Dizi
+                                show_name = cleaned_media_name
+                                year = search_tmdb(cleaned_media_name, is_tv=is_tv).get('first_air_date', '')[:4]
+                                season_episode_match = re.search(r'\s*S(\d{2})\s*E(\d{2})', media_name)
+                                season = season_episode_match.group(1) if season_episode_match else '01'
+                                strm_file_path = os.path.join(series_folder_path, show_name, f'Season {season}', f'{cleaned_media_name}.strm')
+                                nfo_file_path = os.path.join(series_folder_path, show_name, f'Season {season}', f'{cleaned_media_name}.nfo')
                             else:
-                                print(f"Uyarı: '{media_name}' için TMDb verisi bulunamadı.")
-                
-                i += 2  # Bir sonraki #EXTINF satırına atla
-            else:
-                print(f"Uyarı: {extinf_line} için #EXTINF satırı bekleniyor.")
-                i += 1  # Bu satırı atla ve bir sonraki satıra geç
+                                # Film
+                                strm_file_path = os.path.join(movies_folder_path, f'{cleaned_media_name}.strm')
+                                nfo_file_path = os.path.join(movies_folder_path, f'{cleaned_media_name}.nfo')
+                            
+                            # STRM dosyasını oluşturma
+                            os.makedirs(os.path.dirname(strm_file_path), exist_ok=True)
+                            with open(strm_file_path, 'w', encoding='utf-8') as strm_file:
+                                strm_file.write(url_line)
+                            print(f"STRM dosyası oluşturuldu: {strm_file_path}")
 
-print("STRM ve NFO dosyaları başarıyla oluşturuldu.")
+                            # NFO dosyasını oluşturma
+                            tmdb_data = search_tmdb(cleaned_media_name, is_tv=is_tv)
+                            if tmdb_data:
+                                create_nfo(tmdb_data, nfo_file_path, is_tv=is_tv)
+                
+                i += 1
+            i += 1

@@ -194,14 +194,15 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                             id_ = channel_info.get("id", "")
                             owners = ', '.join(channel_info.get("owners", []))
                             languages = ', '.join(channel_info.get("languages", []))
-                            categories = ', '.join(channel_info.get("categories", []))
                             is_nsfw = channel_info.get("is_nsfw", False)
                             
                             # Group-title değerini Türkçeleştirin
+                            categories = ', '.join(channel_info.get("categories", []))
                             translated_categories = ', '.join([category_translation.get(cat, cat) for cat in categories.split(', ')])
+                            group_title = translated_categories if categories else 'Bilinmeyen'
                             
                             # Temizlenmiş ismi ve diğer bilgileri .m3u dosyasına yazın
-                            updated_channels_file.write(f"#EXTINF:-1 group-title=\"{translated_categories}; {bracketsin}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"TR\" is-nsfw=\"{is_nsfw}\", {media_name}\n{url_line}\n")
+                            updated_channels_file.write(f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-id=\"{id_}\" tvg-name=\"{channel_name}\" tvg-logo=\"{logo}\" tvg-country=\"TR\" is-nsfw=\"{is_nsfw}\", {media_name}\n{url_line}\n")
                             print(f"URL '.ts' ile bitiyor ve updated_channels.m3u dosyasına eklendi: {url_line}")
                         else:
                             print(f"Uyarı: '{cleaned_media_name}' için IPTV-Org kanal bilgisi bulunamadı.")

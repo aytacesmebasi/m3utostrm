@@ -5,20 +5,32 @@ import sys
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from urllib.parse import quote
 import requests_cache
 import logging
 
-# Loglama yapılandırması
+#output_files klasörü oluşturma
+current_working_directory = os.getcwd()
+output_folder_path = os.path.join(current_working_directory, 'output_files')
+os.makedirs(output_folder_path, exist_ok=True)
+
+# Loglama yapılandırması ve dosyalaması
 logging.basicConfig(
     stream=sys.stdout, 
     format='%(asctime)s - %(levelname)s - %(message)s', 
     level=logging.INFO,
     encoding='utf-8'
 )
+log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
+file_handler = logging.FileHandler(log_file_path)  # 'app.log' adında bir log dosyası oluşturur
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger = logging.getLogger()
+logger.addHandler(file_handler)
 
 # Version information
-logger.info("m3utostrm v2.5")
-logger.info("the channel that cannot be found with the API is also written to the new m3u file")
+logger.info("m3utostrm v2.6")
+logger.info("movies that cannot be found with API are sent to unknown folder")
 
 # Kullanıcı verileri
 tmdb_api_key = 'YOUR_API_KEY'
@@ -83,37 +95,6 @@ def fetch_and_process_channels(api_url):
         logging.error(f"API isteği başarısız oldu: {e}")
         return []
 
-#output_files klasörü oluşturma
-current_working_directory = os.getcwd()
-output_folder_path = os.path.join(current_working_directory, 'output_files')
-os.makedirs(output_folder_path, exist_ok=True)
-
-# Kaynak M3U dosyasını indirme
-url = f"{iptvurl}/get.php?username={iptvusername}&password={iptvpassword}&type=m3u"
-m3u_file_path = os.path.join(output_folder_path, 'm3u2strm.m3u')
-try:
-    # Dosyayı indirme işlemi
-    response = requests.get(url)
-    
-    # Yanıtın başarılı olup olmadığını kontrol et
-    if response.status_code == 200:
-        # Dosyayı belirtilen yolda kaydet
-        with open(m3u_file_path, 'wb') as file:
-            file.write(response.content)
-        print(f"Dosya başarıyla indirildi ve '{m3u_file_path}' olarak kaydedildi.")
-    else:
-        print(f"HTTP {response.status_code} hata kodu ile karşılaşıldı.")
-except RequestException as e:
-    print(f"Dosya indirme başarısız. Hata: {e}")
-
-# Log dosyalama
-log_file_path = os.path.join(output_folder_path, 'app.log')  # 'app.log' dosyasının tam yolunu oluşturur
-file_handler = logging.FileHandler(log_file_path)  # 'app.log' adında bir log dosyası oluşturur
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger = logging.getLogger()
-logger.addHandler(file_handler)
-
 # Kütüphane listesi
 required_libraries = [
     "requests",
@@ -137,6 +118,24 @@ def main():
 if __name__ == "__main__":
     main()
 
+# Kaynak M3U dosyasını indirme
+url = f"{iptvurl}/get.php?username={iptvusername}&password={iptvpassword}&type=m3u"
+m3u_file_path = os.path.join(output_folder_path, 'm3u2strm.m3u')
+try:
+    # Dosyayı indirme işlemi
+    response = requests.get(url)
+    
+    # Yanıtın başarılı olup olmadığını kontrol et
+    if response.status_code == 200:
+        # Dosyayı belirtilen yolda kaydet
+        with open(m3u_file_path, 'wb') as file:
+            file.write(response.content)
+        print(f"Dosya başarıyla indirildi ve '{m3u_file_path}' olarak kaydedildi.")
+    else:
+        print(f"HTTP {response.status_code} hata kodu ile karşılaşıldı.")
+except RequestException as e:
+    print(f"Dosya indirme başarısız. Hata: {e}")
+
 # STRM ve NFO dosyalarını kaydetmek için klasör oluşturun
 movies_folder_path = os.path.join(output_folder_path, 'movies')
 os.makedirs(movies_folder_path, exist_ok=True)
@@ -147,19 +146,8 @@ logging.info(f"Series Klasörü oluşturuldu: {series_folder_path}")
 porn_folder_path = os.path.join(output_folder_path, 'porn')
 os.makedirs(porn_folder_path, exist_ok=True)
 logging.info(f"Porn Klasörü oluşturuldu: {porn_folder_path}")
-
-# Suffix pattern
-suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
-
-# URL'nin "porn" içerip içermediğini kontrol etme fonksiyonu
-def is_porn_url(url):
-    porn_patterns = [
-        r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX', 
-        r'porn', r'Porn', r'SEX', r'Adult', r'NSFW', 
-        r'pay-per-view', r'live-stream', r'free-videos'
-    ]
-    combined_pattern = '|'.join(porn_patterns)
-    return re.search(combined_pattern, url, re.IGNORECASE) is not None
+unknown_folder_path = os.path.join(output_folder_path, 'unknown')
+logging.info(f"Bulunamayanlar için Klasör oluşturuldu: {unknown_folder_path}")
 
 # Api hata mesajı kontrolü
 def get_with_retries(url, max_retries=3, backoff_factor=1):
@@ -189,6 +177,19 @@ expire_after = 3600
 requests_cache.install_cache(cache_path, expire_after=expire_after)
 logging.info(f"Ön bellek dosyası şu süre için oluşturuldu: {expire_after} saniye.")
 
+# Suffix pattern
+suffix_pattern = re.compile(r'\s*(\[.*?\])(?:\s*\[.*?\]|\s*H\.265|\s*[A-Z]{2,})?\s*$', re.IGNORECASE)
+
+# URL'nin "porn" içerip içermediğini kontrol etme fonksiyonu
+def is_porn_url(url):
+    porn_patterns = [
+        r'xxx', r'XxX', r'XXX', r'xxx1', r'XXX\.', r'2xxX', 
+        r'porn', r'Porn', r'SEX', r'Adult', r'NSFW', 
+        r'pay-per-view', r'live-stream', r'free-videos'
+    ]
+    combined_pattern = '|'.join(porn_patterns)
+    return re.search(combined_pattern, url, re.IGNORECASE) is not None
+
 # Dosya ve klasör isimlerindeki geçersiz karakterleri temizleme fonksiyonu
 def sanitize_filename(filename):
     invalid_chars = '<>:"/\\|?*'
@@ -207,22 +208,25 @@ def clean_name(name, is_tv=False):
 
 # TMDb arama fonksiyonu
 def fetch_data(url):
-    response = get_with_retries(url)
-    if response and response.status_code == 200:
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
         return response.json()
-    else:
+    except requests.RequestException as e:
+        logging.error(f"API isteği başarısız oldu: {e}")
         return None
 
 def search_tmdb(query, is_tv=False):
     search_type = 'tv' if is_tv else 'movie'
-    search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query}&language={your_language_code}"
+    query_encoded = quote(query)  # URL kodlaması
+    search_url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={tmdb_api_key}&query={query_encoded}&language={your_language_code}"
     data = fetch_data(search_url) 
     if data:
         results = data.get('results', [])
         if results:
             return results[0]  # İlk sonuç
         else:
-            logging.error(f"Uyarı: '{query}' için TMDb'de sonuç bulunamadı.")
+            logging.warning(f"Uyarı: '{query}' için TMDb'de sonuç bulunamadı.")
     else:
         logging.error(f"Uyarı: TMDb API isteği başarısız oldu.")
     return None
@@ -422,9 +426,10 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                             # Bilgi bulunamadığında varsayılan değerlerle ekleyin
                             group_title = 'Bilinmeyen'
                             updated_channels_file.write(f"#EXTINF:-1 group-title=\"{group_title}; {bracketsin}\" tvg-name=\"{cleaned_media_name}\" tvg-country=\"TR\" is-nsfw=\"false\", {media_name}\n{url_line}\n")
-                            logging.error(f"Uyarı: '{cleaned_media_name}' için IPTV-Org kanal bilgisi bulunamadı.")
+                            logging.warning(f"Uyarı: '{cleaned_media_name}' için IPTV-Org kanal bilgisi bulunamadı.")
+                    
                     else:
-                        # Porn URL kontrolü
+                        # Porno URL kontrolü
                         if is_porn_url(media_name):
                             porn_strm_path = os.path.join(porn_folder_path, f"{sanitize_filename(media_name)}.strm")
                             with open(porn_strm_path, 'w', encoding='utf-8') as porn_strm_file:
@@ -473,7 +478,7 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                                             if episode_details:
                                                 create_nfo(episode_details, episode_nfo_path, is_tv=True)
                                             else:
-                                                logging.error(f"Uyarı: '{media_name}' için bölüm verisi bulunamadı.")
+                                                logging.warning(f"Uyarı: '{media_name}' için bölüm verisi bulunamadı.")
                                         else:
                                             logging.error(f"Uyarı: Sezon detayları için TMDb API isteği başarısız oldu.")
                                     else:
@@ -485,6 +490,7 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                                     movie_strm_path = os.path.join(movie_folder, f"{cleaned_media_name}.strm")
                                     movie_nfo_path = os.path.join(movie_folder, f"{cleaned_media_name}.nfo")
                                     
+                                    # STRM dosyasını oluştur
                                     with open(movie_strm_path, 'w', encoding='utf-8') as movie_strm_file:
                                         movie_strm_file.write(url_line)
                                         logging.info(f"STRM dosyası oluşturuldu: {movie_strm_path}")
@@ -492,16 +498,25 @@ with open(m3u_file_path, 'r', encoding='utf-8') as m3u_file:
                                     movie_id = tmdb_data['id']
                                     movie_details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={tmdb_api_key}&language=tr&append_to_response=credits,videos"
                                     movie_details_response = get_with_retries(movie_details_url)
+
+
                                     if movie_details_response and movie_details_response.status_code == 200:
                                         movie_details = movie_details_response.json()
                                         create_nfo(movie_details, movie_nfo_path, is_tv=False)
                                     else:
                                         logging.error(f"Uyarı: Film detayları için TMDb API isteği başarısız oldu.")
-                            
                             else:
-                                logging.error(f"Uyarı: '{media_name}' için TMDb verisi bulunamadı.")
-                
-                i += 2  # Bir sonraki #EXTINF satırına atla
+                                # TMDb'den veri bulunamadığında STRM dosyası oluştur
+                                media_folder = os.path.join(unknown_folder_path, cleaned_media_name)
+                                os.makedirs(media_folder, exist_ok=True)
+                                media_strm_path = os.path.join(media_folder, f"{cleaned_media_name}.strm")
+                                with open(media_strm_path, 'w', encoding='utf-8') as media_strm_file:
+                                    media_strm_file.write(url_line)
+                                    logging.warning(f"Uyarı: '{cleaned_media_name}' için TMDb verisi bulunamadı. STRM dosyası oluşturuldu: {media_strm_path}")
+
+                    # İki satırı atlayın
+                    i += 2
+                else:
+                    i += 1
             else:
-                logging.info(f"Uyarı: {extinf_line} için #EXTINF satırı bekleniyor.")
-                i += 1  # Bu satırı atla ve bir sonraki satıra geç
+                i += 1
